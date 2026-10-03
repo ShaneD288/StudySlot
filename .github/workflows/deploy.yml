@@ -1,0 +1,47 @@
+name: Deploy
+
+# Runs after the CI workflow finishes on main, and deploys only if CI passed on a push
+# (not on a pull request). Needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+# repository secrets.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; let a running deploy finish before the next starts.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Deploy exactly the commit that CI tested.
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `npm run deploy` runs scripts/check-launch.js first and stops if the legal pages
+      # still have placeholders.
+      - name: Deploy
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
