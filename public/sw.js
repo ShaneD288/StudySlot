@@ -1,6 +1,8 @@
 // Keeps the app itself available offline. Timetable data is saved by the app on the device;
 // /api requests always go to the network.
-const VERSION = "studyslot-v5";
+// Matches "version" in package.json (a test checks this). A new version on each release makes
+// phones replace their saved copy of the app.
+const VERSION = "studyslot-1.0.0";
 const SHELL = [
   "/",
   "/app.css",

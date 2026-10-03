@@ -7,6 +7,7 @@ const sw = read("public/sw.js");
 const html = read("public/index.html");
 const app = read("public/app.js");
 const manifest = JSON.parse(read("public/manifest.webmanifest"));
+const pkg = JSON.parse(read("package.json"));
 
 const shell = JSON.parse(
   sw.match(/const SHELL = (\[[\s\S]*?\]);/)[1].replace(/,\s*\]/, "]"), // trailing comma
@@ -40,5 +41,15 @@ describe("web app manifest", () => {
     expect(manifest).toMatchObject({ id: "/", start_url: "/", scope: "/", display: "standalone" });
     expect(manifest.icons.map((i) => i.sizes)).toEqual(expect.arrayContaining(["192x192", "512x512"]));
     expect(manifest.icons.some((i) => i.purpose === "maskable")).toBe(true);
+  });
+});
+
+describe("release version", () => {
+  it("the service worker cache name matches package.json, so each release updates phones", () => {
+    expect(sw).toContain(`const VERSION = "studyslot-${pkg.version}";`);
+  });
+
+  it("the app reports the same version in feedback emails", () => {
+    expect(app).toContain(`const APP_VERSION = "${pkg.version}";`);
   });
 });
