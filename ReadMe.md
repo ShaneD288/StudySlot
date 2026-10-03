@@ -60,13 +60,11 @@ It runs on Cloudflare's free plan, with no database and no secrets needed.
 - **Security headers** (`public/_headers`): strict Content-Security-Policy, no framing, no referrer, locked-down permissions.
 - Calendar-feed and friend links contain the student's timetable link (base64-encoded, not encrypted). Anyone with one can see that timetable, so the app tells students to share only with people they trust.
 
-## Launch checklist
+## Before launch
 
-These need you; I can't do them:
-
-1. **Fill in your name** in `public/privacy.html` and `public/terms.html` (replace `[Your name]`). `npm run deploy` refuses to run until you do (`scripts/check-launch.js`).
-2. **Buy the domain** `studyslot.ie` (about €10–20 a year, e.g. through Cloudflare or an Irish registrar; .ie needs a connection to Ireland, which you have). Then add it to Cloudflare and uncomment the `routes` line in `wrangler.jsonc`.
-3. **Set up email** for `hello@studyslot.ie`. Cloudflare Email Routing is free and forwards it to your own inbox, so your personal address stays private.
-4. **Check the name:** search the EU trademark register ([TMview](https://www.tmdn.org/tmview)) for "Studyslot". If you want protection, an EU trademark costs from €850; an Irish one starts lower.
-5. **Have the legal pages reviewed**, ideally before sharing widely.
+1. **Fill in the operator's name** in `public/privacy.html` and `public/terms.html` (replace `[Your name]`). `npm run deploy` refuses to run until this is done (`scripts/check-launch.js`).
+2. **Register the domain** `studyslot.ie` (about €10–20 a year; .ie needs a connection to Ireland), add it to Cloudflare, and uncomment the `routes` line in `wrangler.jsonc`.
+3. **Set up email** for `hello@studyslot.ie` with Cloudflare Email Routing (free; forwards to a private inbox).
+4. **Check the name** on the EU trademark register ([TMview](https://www.tmdn.org/tmview)) for "Studyslot". An EU trademark costs from €850; an Irish one starts lower.
+5. **Have the legal pages reviewed** before sharing widely.
 6. **Test on real phones:** at least one iPhone (Safari) and one Android (Chrome).
