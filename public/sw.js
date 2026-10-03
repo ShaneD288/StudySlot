@@ -1,6 +1,6 @@
 // Keeps the app itself available offline. Timetable data is saved by the app on the device;
 // /api requests always go to the network.
-const VERSION = "studyslot-v4";
+const VERSION = "studyslot-v5";
 const SHELL = [
   "/",
   "/app.css",
@@ -31,16 +31,24 @@ self.addEventListener("activate", (event) => {
   );
   self.clients.claim();
 });
+// Network first, falling back to the saved copy when offline.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  if (event.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
+  if (event.request.method !== "GET" || url.origin !== location.origin) return;
+  // Timetable data and personal calendar feeds are never saved by the service worker.
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/feed/")) return;
+  const navigation = event.request.mode === "navigate";
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(VERSION).then((cache) => cache.put(event.request, copy));
+        // Save only successful responses, and save pages without their query (e.g. ?friend=…).
+        if (res.ok) {
+          const copy = res.clone();
+          const key = navigation ? url.origin + url.pathname : event.request;
+          caches.open(VERSION).then((cache) => cache.put(key, copy));
+        }
         return res;
       })
-      .catch(() => caches.match(event.request)),
+      .catch(() => caches.match(event.request, { ignoreSearch: navigation })),
   );
 });
