@@ -6,3 +6,4 @@ public/courses.json
 public/fonts/
 CLAUDE.md
 .claude/
+test/fixtures/*.ics
