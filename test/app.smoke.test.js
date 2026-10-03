@@ -87,4 +87,28 @@ describe("app smoke test", () => {
     expect(document.querySelector("#view-friends").hidden).toBe(false);
     expect(document.querySelector("#friends-body").textContent).toContain("Find free time with friends");
   });
+
+  it("moves between view tabs with the arrow keys and keeps focus on the selected tab", async () => {
+    const friendsTab = document.querySelector('.tabs button[data-view="friends"]');
+    friendsTab.focus();
+    friendsTab.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    await Promise.resolve();
+    const todayTab = document.querySelector('.tabs button[data-view="today"]');
+    expect(document.querySelector("#view-today").hidden).toBe(false);
+    expect(todayTab.getAttribute("aria-selected")).toBe("true");
+    expect(friendsTab.getAttribute("aria-selected")).toBe("false");
+    expect(document.activeElement).toBe(todayTab);
+  });
+
+  it("moves focus into a sheet, and back to the button that opened it on Escape", () => {
+    const opener = document.querySelector("#open-settings");
+    opener.focus();
+    opener.click();
+    const settings = document.querySelector("#settings");
+    expect(settings.hidden).toBe(false);
+    expect(settings.contains(document.activeElement)).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(settings.hidden).toBe(true);
+    expect(document.activeElement).toBe(opener);
+  });
 });

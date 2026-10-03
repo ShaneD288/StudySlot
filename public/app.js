@@ -208,7 +208,7 @@ function renderInstall() {
     el.hidden = true;
     return;
   }
-  const shareIcon = h("span", { class: "share-icon", "aria-label": "Share" });
+  const shareIcon = h("span", { class: "share-icon", role: "img", "aria-label": "Share" });
   shareIcon.innerHTML =
     '<svg width="16" height="18" viewBox="0 0 16 20" aria-hidden="true"><path d="M8 13V2M4 5.5 8 1.5l4 4M3 9H1.5v9.5h13V9H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   el.hidden = false;
@@ -238,7 +238,7 @@ function renderInstall() {
           },
           "Install",
         ),
-      h("button", { class: "text-btn", onclick: dismiss, "aria-label": "Dismiss install tip" }, "Not now"),
+      h("button", { class: "text-btn", onclick: dismiss }, "Not now"),
     ),
   );
 }
@@ -331,7 +331,10 @@ function render() {
         ? "Week"
         : "Friends";
   for (const v of ["today", "week", "friends"]) $(`#view-${v}`).hidden = view !== v;
-  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  document.querySelectorAll(".tabs button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.view === view);
+    b.setAttribute("aria-selected", String(b.dataset.view === view));
+  });
   if (view === "today") renderToday();
   else if (view === "week") renderWeek();
   else renderFriends();
@@ -1025,7 +1028,7 @@ function renderFriends() {
       ),
     h(
       "div",
-      { class: "day-strip", style: { "--days": days.length }, role: "tablist" },
+      { id: "friend-days", class: "day-strip", style: { "--days": days.length }, role: "tablist", "aria-label": "Day" },
       days.map((k) =>
         h(
           "button",
@@ -1188,18 +1191,67 @@ function checkIncomingFriend() {
 
 // ---------- Sheets ----------
 
+// Sheets are modal dialogs: focus moves into them, Tab stays inside, and closing returns
+// focus to whatever opened them.
+let sheetOpener = null;
+const openSheetEl = () => document.querySelector(".sheet:not([hidden])");
+const focusables = (el) =>
+  [...el.querySelectorAll("button, [href], input, select, textarea, summary")].filter(
+    (x) => !x.disabled && !x.closest("[hidden]"),
+  );
+
 function openSheet(sheet) {
+  if (!openSheetEl()) sheetOpener = document.activeElement;
   $("#scrim").hidden = false;
   sheet.hidden = false;
+  focusables(sheet)[0]?.focus();
 }
 function closeSheets() {
+  const wasOpen = openSheetEl();
   $("#scrim").hidden = true;
   document.querySelectorAll(".sheet").forEach((s) => (s.hidden = true));
+  if (wasOpen && sheetOpener?.isConnected) sheetOpener.focus();
+  sheetOpener = null;
 }
 $("#scrim").addEventListener("click", closeSheets);
 document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheets));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeSheets();
+  const sheet = openSheetEl();
+  if (e.key !== "Tab" || !sheet) return;
+  const items = focusables(sheet);
+  const first = items[0];
+  const last = items.at(-1);
+  if (!sheet.contains(document.activeElement)) {
+    e.preventDefault();
+    first?.focus();
+  } else if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+});
+
+// Tab strips (views and days): arrow keys move between tabs, and keyboard focus stays on the
+// selected tab when a strip is redrawn.
+document.addEventListener(
+  "click",
+  (e) => {
+    const list = e.target.closest?.('[role="tab"]')?.closest('[role="tablist"]');
+    if (!list?.id || !list.contains(document.activeElement)) return;
+    queueMicrotask(() => document.querySelector(`#${list.id} [aria-selected="true"]`)?.focus());
+  },
+  true,
+);
+document.addEventListener("keydown", (e) => {
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+  const tab = e.target.closest?.('[role="tab"]');
+  if (!step || !tab) return;
+  const tabs = [...tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]')];
+  e.preventDefault();
+  tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length].click();
 });
 
 $("#open-settings").addEventListener("click", () => {

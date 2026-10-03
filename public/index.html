@@ -191,25 +191,27 @@
             </button>
           </div>
         </div>
-        <div class="tabs" role="tablist" aria-label="View">
-          <button role="tab" data-view="today" class="active">Today</button>
-          <button role="tab" data-view="week">Week</button>
-          <button role="tab" data-view="friends">Friends</button>
+        <div id="view-tabs" class="tabs" role="tablist" aria-label="View">
+          <button role="tab" data-view="today" class="active" aria-selected="true" aria-controls="view-today">
+            Today
+          </button>
+          <button role="tab" data-view="week" aria-selected="false" aria-controls="view-week">Week</button>
+          <button role="tab" data-view="friends" aria-selected="false" aria-controls="view-friends">Friends</button>
         </div>
       </header>
 
-      <section id="banner" class="banner" hidden></section>
-      <section id="notice" class="banner" hidden></section>
+      <section id="banner" class="banner" role="status" hidden></section>
+      <section id="notice" class="banner" role="status" hidden></section>
 
       <!-- Today -->
-      <section id="view-today" class="view">
+      <section id="view-today" class="view" role="tabpanel" aria-label="Today">
         <div id="install-banner" class="install" hidden></div>
         <div id="now-card" class="now-card"></div>
         <div id="today-list" class="day-list"></div>
       </section>
 
       <!-- Week -->
-      <section id="view-week" class="view" hidden>
+      <section id="view-week" class="view" role="tabpanel" aria-label="Week" hidden>
         <div class="week-nav">
           <button id="week-prev" class="icon-btn" aria-label="Previous week">
             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -242,7 +244,7 @@
       </section>
 
       <!-- Friends -->
-      <section id="view-friends" class="view" hidden>
+      <section id="view-friends" class="view" role="tabpanel" aria-label="Friends" hidden>
         <div id="friend-chips" class="friend-chips"></div>
         <div id="friends-body"></div>
       </section>
@@ -342,7 +344,7 @@
           Studyslot so you can find free time together. The link is private: it doesn't show your timetable link, but
           anyone who has it can see your classes, so only share it with people you trust.
         </p>
-        <div id="qr" class="qr" aria-label="QR code with your Studyslot friend link"></div>
+        <div id="qr" class="qr" role="img" aria-label="QR code with your Studyslot friend link"></div>
         <div class="stack">
           <button class="btn" id="share-link">Send my link</button>
           <label class="name-field"
@@ -362,7 +364,13 @@
       <div class="sheet-body">
         <p class="hint">Paste the Studyslot link your friend sent you.</p>
         <form id="friend-form" class="link-form">
-          <input id="friend-input" placeholder="https://…/?friend=…" autocomplete="off" required />
+          <input
+            id="friend-input"
+            placeholder="https://…/?friend=…"
+            autocomplete="off"
+            required
+            aria-label="Your friend's Studyslot link"
+          />
           <button class="btn" id="friend-submit">Add friend</button>
           <p id="friend-error" class="error" role="alert" hidden></p>
         </form>
