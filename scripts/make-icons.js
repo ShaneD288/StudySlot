@@ -1,5 +1,4 @@
-// Draws the Mulberry app icon (PNG, no dependencies): a berry-colored tile with a
-// white mulberry made of round drupelets and a small leaf. Run: node scripts/make-icons.js
+// Draws the Studyslot app icons as PNGs with no dependencies. Run: node scripts/make-icons.js
 import fs from "node:fs";
 import zlib from "node:zlib";
 

@@ -37,7 +37,7 @@ JSON classes ──▶ saved on the phone, refreshed every 30 min when opened
 | File | Purpose |
 |---|---|
 | `src/index.js` | The single API endpoint (validates the link, fetches, cleans) |
-| `src/timetable.js` | Timetable parsing and cleanup (shared logic with Mulberry) |
+| `src/timetable.js` | Timetable parsing and cleanup |
 | `src/ical.js`, `src/time.js` | iCalendar reading and time zones |
 | `public/` | The app: `index.html`, `app.css`, `app.js`, offline service worker, icons |
 

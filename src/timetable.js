@@ -1,6 +1,5 @@
 // Timetable parsing for Studyslot: reads any college iCal feed, expands repeating classes and
 // cleans each entry down to class, type, group, room and time. Pure functions, no storage.
-// (Shared logic with Mulberry's src/timetable.js.)
 import { parseEvents, readTime, parseDuration, eventText, ianaZone } from "./ical.js";
 import { localToUtc } from "./time.js";
 
