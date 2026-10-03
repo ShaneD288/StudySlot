@@ -1080,7 +1080,7 @@ async function openShare() {
   box.textContent = "Creating your private link…";
   button.disabled = true;
   $("#my-name").value = myName();
-  openSheet($("#share-sheet"));
+  if ($("#share-sheet").hidden) openSheet($("#share-sheet")); // also called to redraw after a name change
   let url;
   try {
     url = `${location.origin}/?friend=${(await myShare()).token}`;
