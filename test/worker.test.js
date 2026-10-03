@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import worker from "../src/index.js";
+import { openToken, sealToken } from "../src/share.js";
 
 // The Worker runs in Node here: global fetch is replaced by a mock so no real college
 // server is contacted, and the clock is fixed in the middle of the fixture's term.
 const fixture = readFileSync(new URL("./fixtures/scientia-sample.ics", import.meta.url), "utf8");
 const LINK = "https://timetable.example.ie/ical/abc123.ics";
 
+const SHARE_KEY = "test-key-0123456789-0123456789-0123456789";
 const env = (overrides = {}) => ({
+  SHARE_KEY,
   ASSETS: { fetch: vi.fn(async () => new Response("static asset")) },
   ...overrides,
 });
@@ -169,7 +172,7 @@ describe("rate limiting and routing", () => {
   });
 });
 
-describe("GET /feed/<token>.ics", () => {
+describe("GET /feed/<token>.ics with an old base64 token", () => {
   const base64Token = (settings) => Buffer.from(JSON.stringify(settings)).toString("base64url");
 
   it("serves a cleaned calendar with the chosen group and without hidden modules", async () => {
@@ -219,5 +222,179 @@ describe("GET /feed/<token>.ics", () => {
     const res = await get(`/feed/${base64Token({ l: LINK })}.ics`, env({ FEED_LIMITER: { limit } }));
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("60");
+  });
+});
+
+describe("old base64 feed tokens during the transition", () => {
+  const base64Token = (settings) => Buffer.from(JSON.stringify(settings)).toString("base64url");
+
+  it("ask the student to add the calendar again", async () => {
+    respondWith(fixture);
+    const ics = (await (await get(`/feed/${base64Token({ l: LINK })}.ics`)).text()).replace(/\r\n /g, "");
+    expect(ics).toContain("X-WR-CALDESC:This calendar link is out of date and will stop working on 1 February 2027");
+  });
+
+  it("stop working on 1 February 2027", async () => {
+    vi.setSystemTime(new Date("2027-02-01T00:00:00Z"));
+    const res = await get(`/feed/${base64Token({ l: LINK })}.ics`);
+    expect(res.status).toBe(410);
+    expect(await res.text()).toMatch(/expired/);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/share", () => {
+  const share = (body, e = env()) =>
+    worker.fetch(
+      new Request("https://studyslot.test/api/share", {
+        method: "POST",
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      }),
+      e,
+    );
+
+  it("returns an encrypted token holding the cleaned settings, and an id", async () => {
+    const res = await share({
+      l: "webcal://timetable.example.ie/ical/abc123.ics",
+      g: { Networks: "A" },
+      h: ["Cloud"],
+      z: "Europe/Dublin",
+      n: "  Alex  ",
+    });
+    expect(res.status).toBe(200);
+    const { token, id } = await res.json();
+    expect(token).not.toContain("timetable");
+    expect(id).toMatch(/^f[A-Za-z0-9_-]+$/);
+    expect(await openToken(token, SHARE_KEY)).toEqual({
+      l: LINK,
+      g: { Networks: "A" },
+      h: ["Cloud"],
+      z: "Europe/Dublin",
+      n: "Alex",
+    });
+    expect(upstream).not.toHaveBeenCalled(); // making a link doesn't fetch the timetable
+  });
+
+  it("gives the same id for the same link", async () => {
+    const a = await (await share({ l: LINK, n: "Alex" })).json();
+    const b = await (await share({ l: "webcal://timetable.example.ie/ical/abc123.ics" })).json();
+    expect(a.id).toBe(b.id);
+    expect(a.token).not.toBe(b.token);
+  });
+
+  it("drops unexpected fields and wrong types", async () => {
+    const { token } = await (
+      await share({ l: LINK, g: { A: 1, B: "x" }, h: [1, "Cloud"], z: "Mars/Base", n: 7, extra: "nope" })
+    ).json();
+    expect(await openToken(token, SHARE_KEY)).toEqual({ l: LINK, g: { B: "x" }, h: ["Cloud"], z: "UTC", n: "" });
+  });
+
+  it("applies the same link checks as the timetable reader", async () => {
+    const res = await share({ l: "https://192.168.1.10/a.ics" });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/doesn't look like a calendar link/);
+  });
+
+  it.each([
+    ["isn't JSON", "{oops", 400],
+    ["isn't an object", "[]", 400],
+    ["is too large", JSON.stringify({ l: LINK, n: "x".repeat(20000) }), 413],
+  ])("rejects a body that %s", async (_, body, status) => {
+    expect((await share(body)).status).toBe(status);
+  });
+
+  it("says sharing isn't available when SHARE_KEY isn't set", async () => {
+    const res = await share({ l: LINK }, env({ SHARE_KEY: undefined }));
+    expect(res.status).toBe(503);
+  });
+
+  it("is rate limited like the timetable reader", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    expect((await share({ l: LINK }, env({ API_LIMITER: { limit } }))).status).toBe(429);
+  });
+});
+
+describe("GET /api/friend", () => {
+  const friend = (token) => get(`/api/friend?token=${encodeURIComponent(token)}&tz=Europe/Dublin`);
+  const friendSettings = {
+    l: LINK,
+    g: { "Mobile Software Development": "B" },
+    h: ["Cloud Computing"],
+    z: "Europe/Dublin",
+    n: "Sam",
+  };
+
+  it("returns the friend's name and their classes (their group, without hidden modules), not their link", async () => {
+    respondWith(fixture);
+    const res = await friend(await sealToken(friendSettings, SHARE_KEY));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(Object.keys(body).sort()).toEqual(["classes", "fetchedAt", "id", "name"]);
+    expect(JSON.stringify(body)).not.toContain("timetable.example.ie");
+    expect(body.name).toBe("Sam");
+    expect(body.classes.length).toBeGreaterThan(0);
+    expect(body.classes.some((c) => c.title === "Cloud Computing")).toBe(false);
+    expect(body.classes.filter((c) => c.type === "Lab").every((c) => c.group === "B")).toBe(true);
+    expect(upstream.mock.calls[0][0]).toBe(LINK);
+  });
+
+  it("returns the same id as POST /api/share for that link", async () => {
+    respondWith(fixture);
+    const shared = await (
+      await worker.fetch(
+        new Request("https://studyslot.test/api/share", { method: "POST", body: JSON.stringify(friendSettings) }),
+        env(),
+      )
+    ).json();
+    expect((await (await friend(shared.token)).json()).id).toBe(shared.id);
+  });
+
+  it("rejects a tampered token without fetching anything", async () => {
+    const token = await sealToken(friendSettings, SHARE_KEY);
+    const tampered = token.slice(0, 20) + (token[20] === "A" ? "B" : "A") + token.slice(21);
+    const res = await friend(tampered);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/isn't valid/);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("doesn't accept old base64 tokens (the app reads those itself)", async () => {
+    const res = await friend(Buffer.from(JSON.stringify(friendSettings)).toString("base64url"));
+    expect(res.status).toBe(400);
+  });
+
+  it("passes on errors from the friend's college server", async () => {
+    respondWith("gone", { status: 404 });
+    const res = await friend(await sealToken(friendSettings, SHARE_KEY));
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toMatch(/no longer works/);
+  });
+});
+
+describe("GET /feed/<token>.ics with an encrypted token", () => {
+  it("serves the cleaned calendar", async () => {
+    respondWith(fixture);
+    const token = await sealToken(
+      { l: LINK, g: { "Mobile Software Development": "B" }, h: [], z: "Europe/Dublin", n: "Alex" },
+      SHARE_KEY,
+    );
+    const res = await get(`/feed/${token}.ics`);
+    expect(res.status).toBe(200);
+    const ics = (await res.text()).replace(/\r\n /g, "");
+    expect(ics).toContain("X-WR-CALDESC:Your college timetable\\, cleaned up by Studyslot");
+    expect(ics).toContain("CQ-228");
+    expect(ics).not.toContain("CQ-227");
+  });
+
+  it("rejects a tampered token", async () => {
+    const token = await sealToken({ l: LINK }, SHARE_KEY);
+    const tampered = token.slice(0, 20) + (token[20] === "A" ? "B" : "A") + token.slice(21);
+    expect((await get(`/feed/${tampered}.ics`)).status).toBe(400);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it("rejects a token made with a different key (e.g. after rotating SHARE_KEY)", async () => {
+    const token = await sealToken({ l: LINK }, "an-old-key-0123456789-0123456789-0123456789");
+    expect((await get(`/feed/${token}.ics`)).status).toBe(400);
   });
 });
