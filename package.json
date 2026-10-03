@@ -2,6 +2,7 @@
   "name": "studyslot",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Studyslot: any student's college timetable, cleaned up. No accounts; nothing stored on the server.",
   "type": "module",
   "scripts": {
