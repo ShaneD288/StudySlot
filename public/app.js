@@ -97,7 +97,6 @@ const classesOn = (k) => visibleClasses().filter((c) => dayKey(new Date(c.start)
 
 function classCard(c) {
   const now = Date.now();
-  const start = Date.parse(c.start);
   const end = Date.parse(c.end);
   const kind = [c.type, c.group && `Group ${c.group}`].filter(Boolean).join(" · ");
   return h(
