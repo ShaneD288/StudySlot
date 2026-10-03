@@ -1,5 +1,7 @@
 # Studyslot
 
+[![CI](https://github.com/ShaneD288/StudySlot/actions/workflows/ci.yml/badge.svg)](https://github.com/ShaneD288/StudySlot/actions/workflows/ci.yml)
+
 Your college timetable, cleaned up. Students paste their timetable calendar link and get a clear view of what's on, where it is and when, without module codes, group labels and capacity numbers.
 
 - **Works with any college** that offers a calendar link (iCal / webcal), including TU Dublin's Scientia timetables, Google Calendar and Outlook.
