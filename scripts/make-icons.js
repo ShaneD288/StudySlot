@@ -22,20 +22,32 @@ const chunk = (type, data) => {
 };
 
 // Studyslot icon: an ink-blue tile with a white timetable grid; one slot is highlighted yellow.
-const INK_TOP = [56, 92, 232], INK_BOTTOM = [33, 60, 196];
-const WHITE = [255, 255, 255], CELL = [214, 224, 255], YELLOW = [255, 225, 90];
-const cols = 3, rows = 4, x0 = 0.2, y0 = 0.2, w = 0.6, hgt = 0.6, gapF = 0.035;
+const INK_TOP = [56, 92, 232],
+  INK_BOTTOM = [33, 60, 196];
+const WHITE = [255, 255, 255],
+  CELL = [214, 224, 255],
+  YELLOW = [255, 225, 90];
+const cols = 3,
+  rows = 4,
+  x0 = 0.2,
+  y0 = 0.2,
+  w = 0.6,
+  hgt = 0.6,
+  gapF = 0.035;
 function colorAt(x, y) {
   const t = x * 0.35 + y * 0.65;
   let c = INK_TOP.map((v, i) => v + (INK_BOTTOM[i] - v) * t);
   if (x < x0 || x > x0 + w || y < y0 || y > y0 + hgt) return c;
-  const cw = w / cols, ch = hgt / rows;
-  const cx = Math.floor((x - x0) / cw), cy = Math.floor((y - y0) / ch);
-  const lx = (x - x0) - cx * cw, ly = (y - y0) - cy * ch;
+  const cw = w / cols,
+    ch = hgt / rows;
+  const cx = Math.floor((x - x0) / cw),
+    cy = Math.floor((y - y0) / ch);
+  const lx = x - x0 - cx * cw,
+    ly = y - y0 - cy * ch;
   if (lx < gapF / 2 || lx > cw - gapF / 2 || ly < gapF / 2 || ly > ch - gapF / 2) return c;
-  if (cy === 0) return WHITE;                       // header row
-  if (cx === 1 && cy === 2) return YELLOW;          // the class happening now
-  if ((cx + cy) % 3 === 0) return CELL;             // a few booked slots
+  if (cy === 0) return WHITE; // header row
+  if (cx === 1 && cy === 2) return YELLOW; // the class happening now
+  if ((cx + cy) % 3 === 0) return CELL; // a few booked slots
   return [c[0] * 0.82 + 255 * 0.18, c[1] * 0.82 + 255 * 0.18, c[2] * 0.82 + 255 * 0.18];
 }
 

@@ -45,8 +45,13 @@ class LinkError extends Error {
 }
 
 function normalizeLink(raw) {
-  const link = String(raw || "").trim().replace(/^webcal:\/\//i, "https://");
-  const notALink = new LinkError("That doesn't look like a calendar link. It should start with https:// or webcal://.", 400);
+  const link = String(raw || "")
+    .trim()
+    .replace(/^webcal:\/\//i, "https://");
+  const notALink = new LinkError(
+    "That doesn't look like a calendar link. It should start with https:// or webcal://.",
+    400,
+  );
   if (!/^https?:\/\/[^/\s]+\.[^/\s]+/i.test(link) || link.length > 2000) throw notALink;
   let url;
   try {
@@ -72,12 +77,17 @@ async function download(link) {
   } catch {
     throw new LinkError("Couldn't reach that link. Check it's copied in full.", 502);
   }
-  if (res.status === 404 || res.status === 410) throw new LinkError("That timetable link no longer works. Your college may have issued a new one.", 502);
+  if (res.status === 404 || res.status === 410)
+    throw new LinkError("That timetable link no longer works. Your college may have issued a new one.", 502);
   if (!res.ok) throw new LinkError(`Your college's server returned an error (${res.status}). Try again later.`, 502);
-  if (Number(res.headers.get("Content-Length") || 0) > MAX_BYTES) throw new LinkError("That calendar is too large to read.", 413);
+  if (Number(res.headers.get("Content-Length") || 0) > MAX_BYTES)
+    throw new LinkError("That calendar is too large to read.", 413);
   const ics = await res.text();
   if (!ics.includes("BEGIN:VCALENDAR")) {
-    throw new LinkError("That link opened a web page, not a calendar. Look for a link ending in .ics or starting with webcal://.", 422);
+    throw new LinkError(
+      "That link opened a web page, not a calendar. Look for a link ending in .ics or starting with webcal://.",
+      422,
+    );
   }
   if (ics.length > MAX_BYTES) throw new LinkError("That calendar is too large to read.", 413);
   return ics;
@@ -133,7 +143,10 @@ function decodeToken(token) {
   }
 }
 
-const escapeText = (s) => String(s).replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
+const escapeText = (s) =>
+  String(s)
+    .replace(/[\\;,]/g, (c) => "\\" + c)
+    .replace(/\r?\n/g, "\\n");
 const icsTime = (iso) => iso.replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const fold = (line) => {
   const out = [];
@@ -143,7 +156,10 @@ const fold = (line) => {
 
 async function hashId(text) {
   const hash = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
-  return [...new Uint8Array(hash)].slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return [...new Uint8Array(hash)]
+    .slice(0, 12)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function calendarFeed(token) {

@@ -3,17 +3,33 @@
 // Run with: node scripts/fetch-courses.js   (re-run each year when CAO publishes new courses)
 import fs from "node:fs";
 
-const COLLEGES = { TR: "Trinity College Dublin", DN: "University College Dublin", DC: "Dublin City University", TU: "TU Dublin", RC: "RCSI" };
+const COLLEGES = {
+  TR: "Trinity College Dublin",
+  DN: "University College Dublin",
+  DC: "Dublin City University",
+  TU: "TU Dublin",
+  RC: "RCSI",
+};
 
 const decode = (s) =>
-  s.replace(/`/g, "’").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/\s+/g, " ").trim();
+  s
+    .replace(/`/g, "’")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+    .replace(/\s+/g, " ")
+    .trim();
 
 const out = {};
 for (const [code, name] of Object.entries(COLLEGES)) {
   const res = await fetch("https://www.cao.ie/courses.php?bb=courses", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "Mozilla/5.0 (Studyslot course list)" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "Mozilla/5.0 (Studyslot course list)",
+    },
     body: new URLSearchParams({ flag: "hei", college: code, url: code }),
   });
   const html = await res.text();

@@ -14,12 +14,15 @@ Your college timetable, cleaned up. Students paste their timetable calendar link
 - **Friends:** share your timetable by QR code or link, add friends' links, and see **free time together** (9:00–18:00) and **classes you share**. Friends' links are saved only on your device.
 
 ### First-run setup
+
 New students pick their **college**, **course** and **year**, then add their link. For Dublin's universities (Trinity, UCD, DCU, TU Dublin, RCSI), the course step is a searchable list of every undergraduate CAO course (`public/courses.json`, 411 courses). Other colleges type their course.
 
 To refresh the course lists (CAO adds and renames courses each year):
+
 ```
 node scripts/fetch-courses.js
 ```
+
 To add a college, add its CAO code in `scripts/fetch-courses.js` and in the `CAO` map in `public/app.js`.
 
 ## How it works
@@ -34,12 +37,12 @@ Cloudflare Worker ──fetch──▶ college calendar link (.ics)
 JSON classes ──▶ saved on the phone, refreshed every 30 min when opened
 ```
 
-| File | Purpose |
-|---|---|
-| `src/index.js` | The single API endpoint (validates the link, fetches, cleans) |
-| `src/timetable.js` | Timetable parsing and cleanup |
-| `src/ical.js`, `src/time.js` | iCalendar reading and time zones |
-| `public/` | The app: `index.html`, `app.css`, `app.js`, offline service worker, icons |
+| File                         | Purpose                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `src/index.js`               | The single API endpoint (validates the link, fetches, cleans)             |
+| `src/timetable.js`           | Timetable parsing and cleanup                                             |
+| `src/ical.js`, `src/time.js` | iCalendar reading and time zones                                          |
+| `public/`                    | The app: `index.html`, `app.css`, `app.js`, offline service worker, icons |
 
 ## Run and deploy
 

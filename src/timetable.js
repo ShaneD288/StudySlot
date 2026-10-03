@@ -24,7 +24,8 @@ export function extractClasses(ics, tz, rangeStart, rangeEnd) {
   // Moved or cancelled single occurrences of a repeating class (RECURRENCE-ID overrides).
   const overridden = new Set();
   for (const v of vevents) {
-    if (v["RECURRENCE-ID"] && v.UID) overridden.add(v.UID.value + "|" + readTime(v["RECURRENCE-ID"], tz).instant?.toISOString());
+    if (v["RECURRENCE-ID"] && v.UID)
+      overridden.add(v.UID.value + "|" + readTime(v["RECURRENCE-ID"], tz).instant?.toISOString());
   }
   const classes = [];
   const cleaned = new Map(); // the same class repeats all term; clean each one once
@@ -55,8 +56,14 @@ export function extractClasses(ics, tz, rangeStart, rangeEnd) {
 // Timetables can hold several years of one-off entries. Skip the ones clearly outside the
 // range from their raw DTSTART before doing the (slower) full parse. Repeating entries are kept.
 function dropOutOfRange(ics, rangeStart, rangeEnd) {
-  const lo = new Date(rangeStart.getTime() - 2 * DAY_MS).toISOString().replace(/[-:]|\.\d{3}/g, "").slice(0, 8);
-  const hi = new Date(rangeEnd.getTime() + 2 * DAY_MS).toISOString().replace(/[-:]|\.\d{3}/g, "").slice(0, 8);
+  const lo = new Date(rangeStart.getTime() - 2 * DAY_MS)
+    .toISOString()
+    .replace(/[-:]|\.\d{3}/g, "")
+    .slice(0, 8);
+  const hi = new Date(rangeEnd.getTime() + 2 * DAY_MS)
+    .toISOString()
+    .replace(/[-:]|\.\d{3}/g, "")
+    .slice(0, 8);
   const blocks = ics.split("BEGIN:VEVENT");
   const kept = blocks.slice(1).filter((block) => {
     if (/\nRRULE[:;]/.test(block)) return true;
@@ -104,7 +111,9 @@ function occurrences(v, tz, rangeStart, rangeEnd) {
   const untilMs = until ? (until.allDay ? Date.parse(until.date + "T23:59:59Z") : until.instant.getTime()) : Infinity;
   const count = rule.COUNT ? parseInt(rule.COUNT, 10) : Infinity;
   const exdates = new Set(
-    (v.EXDATE?.value || "").split(",").filter(Boolean)
+    (v.EXDATE?.value || "")
+      .split(",")
+      .filter(Boolean)
       .map((value) => readTime({ value, params: v.EXDATE.params }, tz).instant?.toISOString()),
   );
 
@@ -155,7 +164,12 @@ const MODULE_CODE = /\b[A-Z]{2,5}[ -]?\d{3,5}[A-Z]?(?:\s*\([A-Z0-9]+\))?/;
 const SEMESTER = /^(?:sem(?:ester)?\s*\d|s\d|term\s*\d|t\d)$/i;
 const WEEKS = /\b(?:weeks?|wks?)\s*\d+(?:\s*[-–,]\s*\d+)*\b/gi;
 const INLINE_GROUP = /\b(?:group|grp|gp)\s+([A-Z0-9]{1,3})\b/i;
-const tidy = (text) => text.replace(/\(\s*\)/g, " ").replace(/\s{2,}/g, " ").replace(/^[\s\-–|:/,.]+|[\s\-–|:/,.]+$/g, "").trim();
+const tidy = (text) =>
+  text
+    .replace(/\(\s*\)/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s\-–|:/,.]+|[\s\-–|:/,.]+$/g, "")
+    .trim();
 
 /**
  * Turns college timetable entries into { title, type, group, code, room, mapUrl }, e.g.
@@ -200,18 +214,26 @@ export function cleanClass(summary, location, description) {
 
   // Some timetables put the details in the description instead.
   const field = (names) => description.match(new RegExp(`(?:${names})\\s*:\\s*([^\\n\\t]+)`, "i"))?.[1]?.trim() || "";
-  if (!title) title = tidy(field("module description|module name|module title|module|course|subject").replace(MODULE_CODE, " ")) || summary;
+  if (!title)
+    title =
+      tidy(field("module description|module name|module title|module|course|subject").replace(MODULE_CODE, " ")) ||
+      summary;
   if (!type) type = TYPES.find(([, re]) => re.test(field("activity type|event type|type")))?.[0] || "";
 
   const room = cleanRoom(location.trim() || field("room|location|venue|where"));
-  const mapUrl = description.match(/https?:\/\/(?:link\.)?mazemap\.com\/[^\s\\]+|https?:\/\/maps\.app\.goo\.gl\/[^\s\\]+/i)?.[0] || "";
+  const mapUrl =
+    description.match(/https?:\/\/(?:link\.)?mazemap\.com\/[^\s\\]+|https?:\/\/maps\.app\.goo\.gl\/[^\s\\]+/i)?.[0] ||
+    "";
 
   return { title, type, group, code, room, mapUrl };
 }
 
 /** "CQ-408 Small Lecture Room / Large Classroom 11 (60)" -> "CQ-408 · Large Classroom 11" */
 function cleanRoom(room) {
-  room = room.replace(/\s*\(\d+\)\s*$/, "").replace(/\s{2,}/g, " ").trim(); // drop "(60)" capacity
+  room = room
+    .replace(/\s*\(\d+\)\s*$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim(); // drop "(60)" capacity
   // Room codes: "CQ-227", "CQ-LG21", "Q-013", "B204", "E2-110"
   const m = room.match(/^([A-Z]{1,4}\d{0,2}-?[A-Z]{0,3}\d{1,4}[A-Z]?)(?=\s|$)\s*(.*)$/);
   if (!m) return room;

@@ -1,290 +1,385 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Studyslot</title>
-  <meta name="description" content="Your college timetable, cleaned up. Paste your calendar link and see what's on, where, and when.">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Studyslot">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0e1220" media="(prefers-color-scheme: dark)">
-  <link rel="apple-touch-icon" href="/icons/icon-180.png">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/app.css">
-</head>
-<body>
-
-<!-- ============ First run: college → course → year → link ============ -->
-<main id="welcome" class="onboard" hidden>
-  <div class="ob-top">
-    <button id="ob-back" class="ob-back" aria-label="Back" hidden>
-      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="ob-progress" id="ob-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  </div>
-
-  <!-- Step 0: hello -->
-  <section class="ob-step" data-step="hello">
-    <div class="ob-hello">
-      <div class="logo-grid" aria-hidden="true">
-        <i></i><i></i><i></i>
-        <i></i><i></i><i></i>
-        <i></i><i class="now"></i><i></i>
-        <i></i><i></i><i></i>
-      </div>
-      <h1>Studyslot</h1>
-      <p class="lede">Your college timetable, cleaned up. What's on, where, and when, in one clear view.</p>
-    </div>
-    <button class="btn ob-next" data-go="college">Get started</button>
-    <p class="privacy">No account needed. Everything stays on this phone.</p>
-    <p class="legal-note">By continuing you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>. For students aged 16+.</p>
-  </section>
-
-  <!-- Step 1: college -->
-  <section class="ob-step" data-step="college" hidden>
-    <h2 class="ob-title">Where do you study?</h2>
-    <label class="search">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      <input id="college-search" type="search" placeholder="Search colleges" autocomplete="off" aria-label="Search colleges">
-    </label>
-    <div id="college-list" class="option-list" role="listbox" aria-label="Colleges"></div>
-    <div id="college-other" class="other-field" hidden>
-      <input id="college-other-input" placeholder="Your college's name" autocomplete="off" aria-label="Your college's name">
-      <button class="btn" id="college-other-next">Continue</button>
-    </div>
-  </section>
-
-  <!-- Step 2: course -->
-  <section class="ob-step" data-step="course" hidden>
-    <h2 class="ob-title">What's your course?</h2>
-    <p class="ob-sub" id="course-sub">Type your course name or code.</p>
-    <input id="course-input" class="big-input" placeholder="e.g. Computer Science" autocomplete="off" aria-label="Course">
-    <div id="course-suggest" class="chips"></div>
-    <div id="course-list" class="option-list" role="listbox" aria-label="Courses" hidden></div>
-    <button class="btn ob-next" id="course-next" disabled>Continue</button>
-  </section>
-
-  <!-- Step 3: year -->
-  <section class="ob-step" data-step="year" hidden>
-    <h2 class="ob-title">What year are you in?</h2>
-    <p class="ob-sub" id="year-sub"></p>
-    <div class="year-grid" role="radiogroup" aria-label="Year">
-      <button role="radio" data-year="1">1st<span>year</span></button>
-      <button role="radio" data-year="2">2nd<span>year</span></button>
-      <button role="radio" data-year="3">3rd<span>year</span></button>
-      <button role="radio" data-year="4">4th<span>year</span></button>
-      <button role="radio" data-year="5">5th<span>year</span></button>
-      <button role="radio" data-year="PG">Post<span>grad</span></button>
-    </div>
-  </section>
-
-  <!-- Step 4: link -->
-  <section class="ob-step" data-step="link" hidden>
-    <h2 class="ob-title">Add your timetable</h2>
-    <p class="ob-sub" id="link-sub">Paste your timetable's calendar link. It's how Studyslot reads your classes.</p>
-    <form id="link-form" class="link-form">
-      <input id="link-input" class="big-input" type="url" inputmode="url" placeholder="webcal://… or https://….ics" autocomplete="off" required aria-label="Timetable calendar link">
-      <button class="btn" id="link-submit">Show my timetable</button>
-      <p id="link-error" class="error" role="alert" hidden></p>
-    </form>
-    <details class="help" id="link-help">
-      <summary>Where do I find my link?</summary>
-      <div class="help-body">
-        <h3 id="help-college-title">On your college's timetable site</h3>
-        <p id="help-college">Look for <b>Subscribe</b>, <b>Export</b>, <b>iCal</b> or <b>Add to calendar</b> and copy the link it gives you. It usually ends in <code>.ics</code> or starts with <code>webcal://</code>.</p>
-        <h3>Already in your iPhone calendar?</h3>
-        <p>Settings → Apps → Calendar → Calendar Accounts → Subscribed Calendars → tap your timetable → copy the address.</p>
-        <h3>Google Calendar</h3>
-        <p>On a computer: Settings → choose the timetable → <b>Secret address in iCal format</b>.</p>
-      </div>
-    </details>
-  </section>
-
-  <!-- Step 5: done -->
-  <section class="ob-step" data-step="done" hidden>
-    <div class="ob-done">
-      <svg class="tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg>
-      <h2 class="ob-title">You're all set</h2>
-      <p class="ob-sub" id="done-sub"></p>
-    </div>
-  </section>
-</main>
-
-<!-- ============ Timetable ============ -->
-<div id="app" class="app" hidden>
-  <header class="top">
-    <div class="top-row">
-      <div class="title-block">
-        <span id="cal-name" class="eyebrow"></span>
-        <h1 id="heading">Today</h1>
-      </div>
-      <div class="top-actions">
-        <button id="open-settings" class="icon-btn" aria-label="Settings" title="Settings">
-          <svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Studyslot</title>
+    <meta
+      name="description"
+      content="Your college timetable, cleaned up. Paste your calendar link and see what's on, where, and when."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Studyslot" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1220" media="(prefers-color-scheme: dark)" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <!-- ============ First run: college → course → year → link ============ -->
+    <main id="welcome" class="onboard" hidden>
+      <div class="ob-top">
+        <button id="ob-back" class="ob-back" aria-label="Back" hidden>
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path
+              d="M15 5l-7 7 7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
         </button>
+        <div class="ob-progress" id="ob-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       </div>
+
+      <!-- Step 0: hello -->
+      <section class="ob-step" data-step="hello">
+        <div class="ob-hello">
+          <div class="logo-grid" aria-hidden="true">
+            <i></i><i></i><i></i> <i></i><i></i><i></i> <i></i><i class="now"></i><i></i> <i></i><i></i><i></i>
+          </div>
+          <h1>Studyslot</h1>
+          <p class="lede">Your college timetable, cleaned up. What's on, where, and when, in one clear view.</p>
+        </div>
+        <button class="btn ob-next" data-go="college">Get started</button>
+        <p class="privacy">No account needed. Everything stays on this phone.</p>
+        <p class="legal-note">
+          By continuing you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.
+          For students aged 16+.
+        </p>
+      </section>
+
+      <!-- Step 1: college -->
+      <section class="ob-step" data-step="college" hidden>
+        <h2 class="ob-title">Where do you study?</h2>
+        <label class="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2" />
+            <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+          </svg>
+          <input
+            id="college-search"
+            type="search"
+            placeholder="Search colleges"
+            autocomplete="off"
+            aria-label="Search colleges"
+          />
+        </label>
+        <div id="college-list" class="option-list" role="listbox" aria-label="Colleges"></div>
+        <div id="college-other" class="other-field" hidden>
+          <input
+            id="college-other-input"
+            placeholder="Your college's name"
+            autocomplete="off"
+            aria-label="Your college's name"
+          />
+          <button class="btn" id="college-other-next">Continue</button>
+        </div>
+      </section>
+
+      <!-- Step 2: course -->
+      <section class="ob-step" data-step="course" hidden>
+        <h2 class="ob-title">What's your course?</h2>
+        <p class="ob-sub" id="course-sub">Type your course name or code.</p>
+        <input
+          id="course-input"
+          class="big-input"
+          placeholder="e.g. Computer Science"
+          autocomplete="off"
+          aria-label="Course"
+        />
+        <div id="course-suggest" class="chips"></div>
+        <div id="course-list" class="option-list" role="listbox" aria-label="Courses" hidden></div>
+        <button class="btn ob-next" id="course-next" disabled>Continue</button>
+      </section>
+
+      <!-- Step 3: year -->
+      <section class="ob-step" data-step="year" hidden>
+        <h2 class="ob-title">What year are you in?</h2>
+        <p class="ob-sub" id="year-sub"></p>
+        <div class="year-grid" role="radiogroup" aria-label="Year">
+          <button role="radio" data-year="1">1st<span>year</span></button>
+          <button role="radio" data-year="2">2nd<span>year</span></button>
+          <button role="radio" data-year="3">3rd<span>year</span></button>
+          <button role="radio" data-year="4">4th<span>year</span></button>
+          <button role="radio" data-year="5">5th<span>year</span></button>
+          <button role="radio" data-year="PG">Post<span>grad</span></button>
+        </div>
+      </section>
+
+      <!-- Step 4: link -->
+      <section class="ob-step" data-step="link" hidden>
+        <h2 class="ob-title">Add your timetable</h2>
+        <p class="ob-sub" id="link-sub">Paste your timetable's calendar link. It's how Studyslot reads your classes.</p>
+        <form id="link-form" class="link-form">
+          <input
+            id="link-input"
+            class="big-input"
+            type="url"
+            inputmode="url"
+            placeholder="webcal://… or https://….ics"
+            autocomplete="off"
+            required
+            aria-label="Timetable calendar link"
+          />
+          <button class="btn" id="link-submit">Show my timetable</button>
+          <p id="link-error" class="error" role="alert" hidden></p>
+        </form>
+        <details class="help" id="link-help">
+          <summary>Where do I find my link?</summary>
+          <div class="help-body">
+            <h3 id="help-college-title">On your college's timetable site</h3>
+            <p id="help-college">
+              Look for <b>Subscribe</b>, <b>Export</b>, <b>iCal</b> or <b>Add to calendar</b> and copy the link it gives
+              you. It usually ends in <code>.ics</code> or starts with <code>webcal://</code>.
+            </p>
+            <h3>Already in your iPhone calendar?</h3>
+            <p>
+              Settings → Apps → Calendar → Calendar Accounts → Subscribed Calendars → tap your timetable → copy the
+              address.
+            </p>
+            <h3>Google Calendar</h3>
+            <p>On a computer: Settings → choose the timetable → <b>Secret address in iCal format</b>.</p>
+          </div>
+        </details>
+      </section>
+
+      <!-- Step 5: done -->
+      <section class="ob-step" data-step="done" hidden>
+        <div class="ob-done">
+          <svg class="tick" viewBox="0 0 52 52" aria-hidden="true">
+            <circle cx="26" cy="26" r="24" />
+            <path d="M15 27l7 7 15-16" />
+          </svg>
+          <h2 class="ob-title">You're all set</h2>
+          <p class="ob-sub" id="done-sub"></p>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ Timetable ============ -->
+    <div id="app" class="app" hidden>
+      <header class="top">
+        <div class="top-row">
+          <div class="title-block">
+            <span id="cal-name" class="eyebrow"></span>
+            <h1 id="heading">Today</h1>
+          </div>
+          <div class="top-actions">
+            <button id="open-settings" class="icon-btn" aria-label="Settings" title="Settings">
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <path
+                  d="M4 7h10M18 7h2M4 17h4M12 17h8"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                />
+                <circle cx="16" cy="7" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2" />
+                <circle cx="10" cy="17" r="2.4" fill="none" stroke="currentColor" stroke-width="2.2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="View">
+          <button role="tab" data-view="today" class="active">Today</button>
+          <button role="tab" data-view="week">Week</button>
+          <button role="tab" data-view="friends">Friends</button>
+        </div>
+      </header>
+
+      <section id="banner" class="banner" hidden></section>
+
+      <!-- Today -->
+      <section id="view-today" class="view">
+        <div id="install-banner" class="install" hidden></div>
+        <div id="now-card" class="now-card"></div>
+        <div id="today-list" class="day-list"></div>
+      </section>
+
+      <!-- Week -->
+      <section id="view-week" class="view" hidden>
+        <div class="week-nav">
+          <button id="week-prev" class="icon-btn" aria-label="Previous week">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path
+                d="M15 5l-7 7 7 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <span id="week-label" class="week-label"></span>
+          <button id="week-next" class="icon-btn" aria-label="Next week">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path
+                d="M9 5l7 7-7 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <div id="day-strip" class="day-strip" role="tablist" aria-label="Day"></div>
+        <div id="week-list" class="day-list"></div>
+      </section>
+
+      <!-- Friends -->
+      <section id="view-friends" class="view" hidden>
+        <div id="friend-chips" class="friend-chips"></div>
+        <div id="friends-body"></div>
+      </section>
+
+      <p id="updated" class="updated"></p>
     </div>
-    <div class="tabs" role="tablist" aria-label="View">
-      <button role="tab" data-view="today" class="active">Today</button>
-      <button role="tab" data-view="week">Week</button>
-      <button role="tab" data-view="friends">Friends</button>
-    </div>
-  </header>
 
-  <section id="banner" class="banner" hidden></section>
+    <!-- ============ Settings ============ -->
+    <div id="scrim" class="scrim" hidden></div>
+    <section id="settings" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="settings-title">Settings</h2>
+        <button class="text-btn" data-close>Done</button>
+      </div>
+      <div class="sheet-body">
+        <div id="groups-section" hidden>
+          <h3>Your groups</h3>
+          <p class="hint">
+            Your timetable lists more than one group for these modules. Pick yours and the rest are hidden.
+          </p>
+          <div id="groups" class="stack"></div>
+        </div>
 
-  <!-- Today -->
-  <section id="view-today" class="view">
-    <div id="install-banner" class="install" hidden></div>
-    <div id="now-card" class="now-card"></div>
-    <div id="today-list" class="day-list"></div>
-  </section>
+        <h3>Modules</h3>
+        <p class="hint">Hide modules you don't take or don't attend.</p>
+        <div id="modules" class="stack"></div>
 
-  <!-- Week -->
-  <section id="view-week" class="view" hidden>
-    <div class="week-nav">
-      <button id="week-prev" class="icon-btn" aria-label="Previous week">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <span id="week-label" class="week-label"></span>
-      <button id="week-next" class="icon-btn" aria-label="Next week">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-    </div>
-    <div id="day-strip" class="day-strip" role="tablist" aria-label="Day"></div>
-    <div id="week-list" class="day-list"></div>
-  </section>
+        <h3>Add to your calendar</h3>
+        <p class="hint">
+          Get this clean timetable in your phone's own calendar, with an alert 10 minutes before each class. It uses
+          your current groups and hidden modules; if you change them, add it again.
+        </p>
+        <div class="stack">
+          <a class="row-btn" id="feed-apple" href="#">Add to iPhone Calendar</a>
+          <a class="row-btn" id="feed-google" href="#" target="_blank" rel="noopener">Add to Google Calendar</a>
+          <button class="row-btn" id="feed-copy">Copy calendar link</button>
+        </div>
 
-  <!-- Friends -->
-  <section id="view-friends" class="view" hidden>
-    <div id="friend-chips" class="friend-chips"></div>
-    <div id="friends-body"></div>
-  </section>
+        <div id="friends-section" hidden>
+          <h3>Friends</h3>
+          <div id="friends-list" class="stack"></div>
+        </div>
 
-  <p id="updated" class="updated"></p>
-</div>
+        <h3>About you</h3>
+        <div class="stack">
+          <button class="row-btn" id="edit-profile">College, course and year</button>
+        </div>
 
-<!-- ============ Settings ============ -->
-<div id="scrim" class="scrim" hidden></div>
-<section id="settings" class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
-  <div class="sheet-bar">
-    <h2 id="settings-title">Settings</h2>
-    <button class="text-btn" data-close>Done</button>
-  </div>
-  <div class="sheet-body">
-    <div id="groups-section" hidden>
-      <h3>Your groups</h3>
-      <p class="hint">Your timetable lists more than one group for these modules. Pick yours and the rest are hidden.</p>
-      <div id="groups" class="stack"></div>
-    </div>
+        <h3>Timetable</h3>
+        <div class="stack">
+          <button class="row-btn" id="refresh">Refresh now</button>
+          <button class="row-btn" id="change-link">Use a different link</button>
+          <button class="row-btn danger" id="forget">Remove my timetable from this device</button>
+        </div>
 
-    <h3>Modules</h3>
-    <p class="hint">Hide modules you don't take or don't attend.</p>
-    <div id="modules" class="stack"></div>
+        <h3>Help</h3>
+        <div class="stack">
+          <button class="row-btn" id="feedback">Send feedback</button>
+          <a class="row-btn" href="/privacy">Privacy Policy</a>
+          <a class="row-btn" href="/terms">Terms of Use</a>
+        </div>
+        <p class="privacy">
+          Studyslot is independent and not connected to any college. Always check your college's official timetable.
+        </p>
+        <p class="privacy">
+          Studyslot keeps your link and choices only on this device. Each refresh fetches your timetable fresh and
+          nothing is saved on our server.
+        </p>
+      </div>
+    </section>
 
-    <h3>Add to your calendar</h3>
-    <p class="hint">Get this clean timetable in your phone's own calendar, with an alert 10 minutes before each class. It uses your current groups and hidden modules; if you change them, add it again.</p>
-    <div class="stack">
-      <a class="row-btn" id="feed-apple" href="#">Add to iPhone Calendar</a>
-      <a class="row-btn" id="feed-google" href="#" target="_blank" rel="noopener">Add to Google Calendar</a>
-      <button class="row-btn" id="feed-copy">Copy calendar link</button>
-    </div>
+    <section id="groups-prompt" class="sheet" role="dialog" aria-modal="true" aria-labelledby="gp-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="gp-title">Which groups are you in?</h2>
+        <button class="text-btn" data-close>Later</button>
+      </div>
+      <div class="sheet-body">
+        <p class="hint">
+          Some classes are listed for several groups at the same time. Pick yours so you only see your own. You can
+          change this in Settings.
+        </p>
+        <div id="gp-groups" class="stack"></div>
+        <button class="btn" data-close>Done</button>
+      </div>
+    </section>
 
-    <div id="friends-section" hidden>
-      <h3>Friends</h3>
-      <div id="friends-list" class="stack"></div>
-    </div>
+    <!-- Share my code -->
+    <section id="share-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="share-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="share-title">Share with a friend</h2>
+        <button class="text-btn" data-close>Done</button>
+      </div>
+      <div class="sheet-body">
+        <p class="hint">
+          Your friend scans this with their phone camera, or you send them the link. They'll see your timetable in
+          Studyslot so you can find free time together. Only share it with people you trust.
+        </p>
+        <div id="qr" class="qr" aria-label="QR code with your Studyslot friend link"></div>
+        <div class="stack">
+          <button class="btn" id="share-link">Send my link</button>
+          <label class="name-field"
+            >Your name for friends
+            <input id="my-name" placeholder="e.g. Alex" autocomplete="given-name" />
+          </label>
+        </div>
+      </div>
+    </section>
 
-    <h3>About you</h3>
-    <div class="stack">
-      <button class="row-btn" id="edit-profile">College, course and year</button>
-    </div>
+    <!-- Add a friend -->
+    <section id="friend-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="friend-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="friend-title">Add a friend</h2>
+        <button class="text-btn" data-close>Cancel</button>
+      </div>
+      <div class="sheet-body">
+        <p class="hint">Paste the Studyslot link your friend sent you.</p>
+        <form id="friend-form" class="link-form">
+          <input id="friend-input" placeholder="https://…/?friend=…" autocomplete="off" required />
+          <button class="btn" id="friend-submit">Add friend</button>
+          <p id="friend-error" class="error" role="alert" hidden></p>
+        </form>
+      </div>
+    </section>
 
-    <h3>Timetable</h3>
-    <div class="stack">
-      <button class="row-btn" id="refresh">Refresh now</button>
-      <button class="row-btn" id="change-link">Use a different link</button>
-      <button class="row-btn danger" id="forget">Remove my timetable from this device</button>
-    </div>
+    <!-- Opened someone's friend link -->
+    <section id="incoming" class="sheet" role="dialog" aria-modal="true" aria-labelledby="incoming-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="incoming-title">Add friend?</h2>
+        <button class="text-btn" data-close>Not now</button>
+      </div>
+      <div class="sheet-body">
+        <p id="incoming-text" class="hint"></p>
+        <div class="stack">
+          <button class="btn" id="incoming-add">Add to my Studyslot</button>
+          <button class="row-btn" id="incoming-copy">Copy link</button>
+          <p class="hint">
+            Using Studyslot from your Home Screen? Copy the link, open Studyslot, then Friends → Add a friend → paste.
+          </p>
+        </div>
+      </div>
+    </section>
 
-    <h3>Help</h3>
-    <div class="stack">
-      <button class="row-btn" id="feedback">Send feedback</button>
-      <a class="row-btn" href="/privacy">Privacy Policy</a>
-      <a class="row-btn" href="/terms">Terms of Use</a>
-    </div>
-    <p class="privacy">Studyslot is independent and not connected to any college. Always check your college's official timetable.</p>
-    <p class="privacy">Studyslot keeps your link and choices only on this device. Each refresh fetches your timetable fresh and nothing is saved on our server.</p>
-  </div>
-</section>
-
-<section id="groups-prompt" class="sheet" role="dialog" aria-modal="true" aria-labelledby="gp-title" hidden>
-  <div class="sheet-bar">
-    <h2 id="gp-title">Which groups are you in?</h2>
-    <button class="text-btn" data-close>Later</button>
-  </div>
-  <div class="sheet-body">
-    <p class="hint">Some classes are listed for several groups at the same time. Pick yours so you only see your own. You can change this in Settings.</p>
-    <div id="gp-groups" class="stack"></div>
-    <button class="btn" data-close>Done</button>
-  </div>
-</section>
-
-<!-- Share my code -->
-<section id="share-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="share-title" hidden>
-  <div class="sheet-bar">
-    <h2 id="share-title">Share with a friend</h2>
-    <button class="text-btn" data-close>Done</button>
-  </div>
-  <div class="sheet-body">
-    <p class="hint">Your friend scans this with their phone camera, or you send them the link. They'll see your timetable in Studyslot so you can find free time together. Only share it with people you trust.</p>
-    <div id="qr" class="qr" aria-label="QR code with your Studyslot friend link"></div>
-    <div class="stack">
-      <button class="btn" id="share-link">Send my link</button>
-      <label class="name-field">Your name for friends
-        <input id="my-name" placeholder="e.g. Alex" autocomplete="given-name">
-      </label>
-    </div>
-  </div>
-</section>
-
-<!-- Add a friend -->
-<section id="friend-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="friend-title" hidden>
-  <div class="sheet-bar">
-    <h2 id="friend-title">Add a friend</h2>
-    <button class="text-btn" data-close>Cancel</button>
-  </div>
-  <div class="sheet-body">
-    <p class="hint">Paste the Studyslot link your friend sent you.</p>
-    <form id="friend-form" class="link-form">
-      <input id="friend-input" placeholder="https://…/?friend=…" autocomplete="off" required>
-      <button class="btn" id="friend-submit">Add friend</button>
-      <p id="friend-error" class="error" role="alert" hidden></p>
-    </form>
-  </div>
-</section>
-
-<!-- Opened someone's friend link -->
-<section id="incoming" class="sheet" role="dialog" aria-modal="true" aria-labelledby="incoming-title" hidden>
-  <div class="sheet-bar">
-    <h2 id="incoming-title">Add friend?</h2>
-    <button class="text-btn" data-close>Not now</button>
-  </div>
-  <div class="sheet-body">
-    <p id="incoming-text" class="hint"></p>
-    <div class="stack">
-      <button class="btn" id="incoming-add">Add to my Studyslot</button>
-      <button class="row-btn" id="incoming-copy">Copy link</button>
-      <p class="hint">Using Studyslot from your Home Screen? Copy the link, open Studyslot, then Friends → Add a friend → paste.</p>
-    </div>
-  </div>
-</section>
-
-<script src="/vendor/qrcode.min.js" defer></script>
-<script src="/app.js" type="module"></script>
-</body>
+    <script src="/vendor/qrcode.min.js" defer></script>
+    <script src="/app.js" type="module"></script>
+  </body>
 </html>

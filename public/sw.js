@@ -1,14 +1,29 @@
 // Keeps the app itself available offline. Timetable data is saved by the app on the device;
 // /api requests always go to the network.
 const VERSION = "studyslot-v2";
-const SHELL = ["/", "/app.css", "/app.js", "/courses.json", "/fonts/bricolage-grotesque-latin.woff2", "/vendor/qrcode.min.js", "/privacy", "/terms", "/legal.css", "/manifest.webmanifest", "/icons/icon-180.png", "/icons/icon-192.png"];
+const SHELL = [
+  "/",
+  "/app.css",
+  "/app.js",
+  "/courses.json",
+  "/fonts/bricolage-grotesque-latin.woff2",
+  "/vendor/qrcode.min.js",
+  "/privacy",
+  "/terms",
+  "/legal.css",
+  "/manifest.webmanifest",
+  "/icons/icon-180.png",
+  "/icons/icon-192.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)));
   self.skipWaiting();
 });
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))));
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))),
+  );
   self.clients.claim();
 });
 self.addEventListener("fetch", (event) => {

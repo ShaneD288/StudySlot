@@ -22,8 +22,7 @@ function parseLine(line) {
   return { name: name.toUpperCase(), params, value: line.slice(i + 1) };
 }
 
-const unescapeText = (s) =>
-  s.replace(/\\([\\;,nN])/g, (_, c) => (c === "n" || c === "N" ? "\n" : c));
+const unescapeText = (s) => s.replace(/\\([\\;,nN])/g, (_, c) => (c === "n" || c === "N" ? "\n" : c));
 
 /** Returns the VEVENTs in an iCalendar string as { NAME: {value, params} } maps. */
 export function parseEvents(ics) {
@@ -94,7 +93,7 @@ const WINDOWS_ZONES = {
   "Tokyo Standard Time": "Asia/Tokyo",
   "Singapore Standard Time": "Asia/Singapore",
   "AUS Eastern Standard Time": "Australia/Sydney",
-  "UTC": "UTC",
+  UTC: "UTC",
   "Coordinated Universal Time": "UTC",
 };
 const zoneCache = new Map();
@@ -104,12 +103,18 @@ export function ianaZone(tzid, fallback) {
   if (!tzid) return fallback;
   if (zoneCache.has(tzid)) return zoneCache.get(tzid) || fallback;
   const valid = (z) => {
-    try { new Intl.DateTimeFormat("en-US", { timeZone: z }); return true; } catch { return false; }
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: z });
+      return true;
+    } catch {
+      return false;
+    }
   };
   let zone = null;
   if (valid(tzid)) zone = tzid;
   else if (WINDOWS_ZONES[tzid]) zone = WINDOWS_ZONES[tzid];
-  else if (/dublin|london|edinburgh|lisbon/i.test(tzid)) zone = "Europe/London"; // "(UTC+00:00) Dublin, Edinburgh…"
+  else if (/dublin|london|edinburgh|lisbon/i.test(tzid))
+    zone = "Europe/London"; // "(UTC+00:00) Dublin, Edinburgh…"
   else {
     // "/mozilla.org/20070129_1/Europe/Dublin" and similar prefixed names.
     const m = tzid.match(/([A-Z][a-z]+\/[A-Za-z_]+(?:\/[A-Za-z_]+)?)$/);
@@ -121,9 +126,16 @@ export function ianaZone(tzid, fallback) {
 
 // ---------- Writing ----------
 
-const escapeText = (s) => String(s).replace(/[\\;,]/g, (c) => "\\" + c).replace(/\r?\n/g, "\\n");
+const escapeText = (s) =>
+  String(s)
+    .replace(/[\\;,]/g, (c) => "\\" + c)
+    .replace(/\r?\n/g, "\\n");
 
-const icsDateTime = (date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+const icsDateTime = (date) =>
+  date
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
 const icsDate = (date) => date.replace(/-/g, "");
 
 // Lines longer than 75 octets must be folded. Folding by characters at 60 keeps
@@ -165,7 +177,13 @@ export function buildEvent({ uid, title, start, end, location, notes, alertMinut
   if (location) lines.push(`LOCATION:${escapeText(location)}`);
   if (notes) lines.push(`DESCRIPTION:${escapeText(notes)}`);
   if (alertMinutes != null) {
-    lines.push("BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${escapeText(title)}`, `TRIGGER:-PT${alertMinutes}M`, "END:VALARM");
+    lines.push(
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      `DESCRIPTION:${escapeText(title)}`,
+      `TRIGGER:-PT${alertMinutes}M`,
+      "END:VALARM",
+    );
   }
   lines.push("END:VEVENT", "END:VCALENDAR");
   return lines.map(fold).join("\r\n") + "\r\n";
@@ -179,8 +197,10 @@ export function buildEvent({ uid, title, start, end, location, notes, alertMinut
 export function patchEvent(ics, changes) {
   const replacements = {};
   if (changes.title !== undefined) replacements.SUMMARY = `SUMMARY:${escapeText(changes.title)}`;
-  if (changes.location !== undefined) replacements.LOCATION = changes.location ? `LOCATION:${escapeText(changes.location)}` : null;
-  if (changes.notes !== undefined) replacements.DESCRIPTION = changes.notes ? `DESCRIPTION:${escapeText(changes.notes)}` : null;
+  if (changes.location !== undefined)
+    replacements.LOCATION = changes.location ? `LOCATION:${escapeText(changes.location)}` : null;
+  if (changes.notes !== undefined)
+    replacements.DESCRIPTION = changes.notes ? `DESCRIPTION:${escapeText(changes.notes)}` : null;
   if (changes.start) replacements.DTSTART = timeLines("DTSTART", changes.start);
   if (changes.end) {
     replacements.DTEND = timeLines("DTEND", changes.end);
@@ -218,4 +238,3 @@ export function patchEvent(ics, changes) {
   }
   return out.map(fold).join("\r\n") + "\r\n";
 }
-

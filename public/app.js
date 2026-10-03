@@ -6,7 +6,8 @@ function h(tag, attrs = {}, ...children) {
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === false) continue;
     if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
-    else if (k === "style") for (const [p, val] of Object.entries(v)) p.startsWith("--") ? el.style.setProperty(p, val) : (el.style[p] = val);
+    else if (k === "style")
+      for (const [p, val] of Object.entries(v)) p.startsWith("--") ? el.style.setProperty(p, val) : (el.style[p] = val);
     else el.setAttribute(k, v === true ? "" : v);
   }
   el.append(...children.flat().filter((c) => c != null && c !== false));
@@ -25,10 +26,16 @@ const store = {
     }
   },
   set(key, value) {
-    try { localStorage.setItem("studyslot." + key, JSON.stringify(value)); } catch {}
+    try {
+      localStorage.setItem("studyslot." + key, JSON.stringify(value));
+    } catch {}
   },
   clear() {
-    try { Object.keys(localStorage).filter((k) => k.startsWith("studyslot.")).forEach((k) => localStorage.removeItem(k)); } catch {}
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("studyslot."))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
   },
 };
 
@@ -38,11 +45,16 @@ const CONTACT = "hello@studyslot.ie";
 const STALE_MS = 30 * 60 * 1000;
 
 let link = store.get("link");
-let data = store.get("data");          // { name, classes, groupChoices, fetchedAt }
-let groups = store.get("groups", {});  // module title -> chosen group
+let data = store.get("data"); // { name, classes, groupChoices, fetchedAt }
+let groups = store.get("groups", {}); // module title -> chosen group
 let hidden = new Set(store.get("hidden", []));
-let friends = store.get("friends", []);             // [{ id, name, l, g, h }]
-let selectedFriends = new Set(store.get("selectedFriends", friends.map((f) => f.id)));
+let friends = store.get("friends", []); // [{ id, name, l, g, h }]
+let selectedFriends = new Set(
+  store.get(
+    "selectedFriends",
+    friends.map((f) => f.id),
+  ),
+);
 let friendDay = null;
 let view = "today";
 let weekOffset = 0;
@@ -53,7 +65,11 @@ let selectedDay = null;
 const pad = (n) => String(n).padStart(2, "0");
 const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const fromKey = (k) => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
-const addDays = (k, n) => { const d = fromKey(k); d.setDate(d.getDate() + n); return dayKey(d); };
+const addDays = (k, n) => {
+  const d = fromKey(k);
+  d.setDate(d.getDate() + n);
+  return dayKey(d);
+};
 const todayKey = () => dayKey(new Date());
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const mondayOf = (k) => addDays(k, -((fromKey(k).getDay() + 6) % 7));
@@ -80,7 +96,9 @@ const weeksBetween = (a, b) => Math.round((fromKey(b) - fromKey(a)) / (7 * 86400
 // Terms are runs of weeks with classes; up to two empty weeks (e.g. reading week) stay inside a term.
 function terms() {
   const weeks = data?.weeks || {};
-  const mondays = Object.keys(weeks).filter((k) => weeks[k] > 0).sort();
+  const mondays = Object.keys(weeks)
+    .filter((k) => weeks[k] > 0)
+    .sort();
   const out = [];
   for (const m of mondays) {
     const t = out.at(-1);
@@ -129,11 +147,17 @@ function classCard(c) {
   const start = Date.parse(c.start);
   const end = Date.parse(c.end);
   const kind = [c.type, c.group && `Group ${c.group}`].filter(Boolean).join(" · ");
-  return h("article", { class: "class" + (end < now ? " past" : ""), style: { "--hue": hue(c.title) } },
+  return h(
+    "article",
+    { class: "class" + (end < now ? " past" : ""), style: { "--hue": hue(c.title) } },
     h("div", { class: "time" }, time(c.start), h("span", {}, time(c.end))),
-    h("div", {},
+    h(
+      "div",
+      {},
       h("div", { class: "name" }, c.title),
-      h("div", { class: "meta" },
+      h(
+        "div",
+        { class: "meta" },
         kind && h("span", { class: "kind" }, kind),
         h("span", { class: "room" }, c.room || "Room not listed"),
       ),
@@ -173,8 +197,16 @@ function renderNowCard() {
       h("div", { class: "label" }, "Now"),
       h("div", { class: "what" }, current.title),
       where(current),
-      h("div", { class: "when" }, `${current.type || "Class"} · until ${time(current.end)} · ${duration(Date.parse(current.end) - now)} left`),
-      h("div", { class: "progress", "aria-hidden": "true" }, h("i", { style: { width: `${Math.round(done * 100)}%` } })),
+      h(
+        "div",
+        { class: "when" },
+        `${current.type || "Class"} · until ${time(current.end)} · ${duration(Date.parse(current.end) - now)} left`,
+      ),
+      h(
+        "div",
+        { class: "progress", "aria-hidden": "true" },
+        h("i", { style: { width: `${Math.round(done * 100)}%` } }),
+      ),
     );
   } else if (next && dayKey(new Date(next.start)) === todayKey()) {
     card.replaceChildren(
@@ -192,7 +224,10 @@ function renderNowCard() {
     );
   } else {
     card.classList.add("quiet");
-    card.replaceChildren(h("div", { class: "label" }, "Nothing coming up"), h("div", { class: "when" }, "No more classes found in your timetable."));
+    card.replaceChildren(
+      h("div", { class: "label" }, "Nothing coming up"),
+      h("div", { class: "when" }, "No more classes found in your timetable."),
+    );
   }
 }
 
@@ -206,7 +241,8 @@ window.addEventListener("beforeinstallprompt", (e) => {
   renderInstall();
 });
 const isInstalled = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isIOS = () =>
+  /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 function renderInstall() {
   const el = $("#install-banner");
@@ -220,25 +256,35 @@ function renderInstall() {
     return;
   }
   const shareIcon = h("span", { class: "share-icon", "aria-label": "Share" });
-  shareIcon.innerHTML = '<svg width="16" height="18" viewBox="0 0 16 20" aria-hidden="true"><path d="M8 13V2M4 5.5 8 1.5l4 4M3 9H1.5v9.5h13V9H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  shareIcon.innerHTML =
+    '<svg width="16" height="18" viewBox="0 0 16 20" aria-hidden="true"><path d="M8 13V2M4 5.5 8 1.5l4 4M3 9H1.5v9.5h13V9H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   el.hidden = false;
   el.replaceChildren(
-    h("div", { class: "install-text" },
+    h(
+      "div",
+      { class: "install-text" },
       h("b", {}, "Add Studyslot to your Home Screen"),
       installPrompt
         ? h("span", {}, "Open it like an app, even offline.")
         : h("span", {}, "In Safari, tap ", shareIcon, " Share, then ", h("b", {}, "Add to Home Screen"), "."),
     ),
-    h("div", { class: "install-actions" },
-      installPrompt && h("button", {
-        class: "btn small",
-        onclick: async () => {
-          installPrompt.prompt();
-          await installPrompt.userChoice.catch(() => {});
-          installPrompt = null;
-          dismiss();
-        },
-      }, "Install"),
+    h(
+      "div",
+      { class: "install-actions" },
+      installPrompt &&
+        h(
+          "button",
+          {
+            class: "btn small",
+            onclick: async () => {
+              installPrompt.prompt();
+              await installPrompt.userChoice.catch(() => {});
+              installPrompt = null;
+              dismiss();
+            },
+          },
+          "Install",
+        ),
       h("button", { class: "text-btn", onclick: dismiss, "aria-label": "Dismiss install tip" }, "Not now"),
     ),
   );
@@ -265,7 +311,8 @@ function renderWeek() {
   if (!selectedDay || !shown.includes(selectedDay)) selectedDay = shown.includes(todayKey()) ? todayKey() : shown[0];
 
   const fmt = (k) => fromKey(k).toLocaleDateString([], { day: "numeric", month: "short" });
-  const relative = weekOffset === 0 ? "This week" : weekOffset === 1 ? "Next week" : `${fmt(monday)} – ${fmt(addDays(monday, 6))}`;
+  const relative =
+    weekOffset === 0 ? "This week" : weekOffset === 1 ? "Next week" : `${fmt(monday)} – ${fmt(addDays(monday, 6))}`;
   $("#week-label").textContent = [relative, weekLabel(monday).replace(/ of \d+/, "")].filter(Boolean).join(" · ");
 
   const strip = $("#day-strip");
@@ -273,12 +320,17 @@ function renderWeek() {
   strip.replaceChildren(
     ...shown.map((k) => {
       const n = classesOn(k).length;
-      return h("button", {
-        role: "tab",
-        class: [k === selectedDay && "active", k === todayKey() && "today"].filter(Boolean).join(" "),
-        "aria-selected": String(k === selectedDay),
-        onclick: () => { selectedDay = k; renderWeek(); },
-      },
+      return h(
+        "button",
+        {
+          role: "tab",
+          class: [k === selectedDay && "active", k === todayKey() && "today"].filter(Boolean).join(" "),
+          "aria-selected": String(k === selectedDay),
+          onclick: () => {
+            selectedDay = k;
+            renderWeek();
+          },
+        },
         fromKey(k).toLocaleDateString([], { weekday: "short" }),
         h("b", {}, String(fromKey(k).getDate())),
         h("span", { class: "count" }, n ? `${n} class${n === 1 ? "" : "es"}` : "free"),
@@ -288,13 +340,25 @@ function renderWeek() {
 
   const list = classesOn(selectedDay);
   $("#week-list").replaceChildren(
-    h("div", { class: "day-head" }, fromKey(selectedDay).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })),
+    h(
+      "div",
+      { class: "day-head" },
+      fromKey(selectedDay).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" }),
+    ),
     ...(list.length ? dayList(list) : [h("div", { class: "empty" }, h("b", {}, "No classes"), "Nothing on this day.")]),
   );
 }
 
-$("#week-prev").addEventListener("click", () => { weekOffset--; selectedDay = null; renderWeek(); });
-$("#week-next").addEventListener("click", () => { weekOffset++; selectedDay = null; renderWeek(); });
+$("#week-prev").addEventListener("click", () => {
+  weekOffset--;
+  selectedDay = null;
+  renderWeek();
+});
+$("#week-next").addEventListener("click", () => {
+  weekOffset++;
+  selectedDay = null;
+  renderWeek();
+});
 
 // ---------- Screens ----------
 
@@ -303,11 +367,16 @@ function render() {
   const thisWeek = weekLabel(mondayOf(todayKey()));
   const who = profile.course
     ? [profile.courseCode || profile.course, yearLabel(profile.year)].filter(Boolean).join(" · ")
-    : data.name ? `${data.name}'s timetable` : "My timetable";
+    : data.name
+      ? `${data.name}'s timetable`
+      : "My timetable";
   $("#cal-name").textContent = [who, thisWeek].filter(Boolean).join(" · ");
-  $("#heading").textContent = view === "today"
-    ? new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })
-    : view === "week" ? "Week" : "Friends";
+  $("#heading").textContent =
+    view === "today"
+      ? new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "short" })
+      : view === "week"
+        ? "Week"
+        : "Friends";
   for (const v of ["today", "week", "friends"]) $(`#view-${v}`).hidden = view !== v;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
   if (view === "today") renderToday();
@@ -317,19 +386,29 @@ function render() {
   $("#updated").textContent = `Updated ${mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : when(data.fetchedAt)}`;
 }
 
-document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => { view = b.dataset.view; render(); }));
+document.querySelectorAll(".tabs button").forEach((b) =>
+  b.addEventListener("click", () => {
+    view = b.dataset.view;
+    render();
+  }),
+);
 
 // ---------- First run: college → course → year → link ----------
 
 let profile = store.get("profile", {}); // { college, short, course, year }
-let obMode = "first";                   // "first" | "edit" (from Settings) | "link" (change link only)
+let obMode = "first"; // "first" | "edit" (from Settings) | "link" (change link only)
 let obCurrent = "hello";
 
 const COLLEGES = [
   ["Trinity College Dublin", "TCD", "Dublin"],
   ["University College Dublin", "UCD", "Dublin"],
   ["Dublin City University", "DCU", "Dublin"],
-  ["TU Dublin", "TUD", "Dublin", "TU Dublin timetables come from its online timetable system. Open your personal timetable and look for Subscribe or Add to calendar."],
+  [
+    "TU Dublin",
+    "TUD",
+    "Dublin",
+    "TU Dublin timetables come from its online timetable system. Open your personal timetable and look for Subscribe or Add to calendar.",
+  ],
   ["University of Galway", "UG", "Galway"],
   ["University College Cork", "UCC", "Cork"],
   ["University of Limerick", "UL", "Limerick"],
@@ -347,8 +426,24 @@ const COLLEGES = [
   ["Griffith College", "GC", "Dublin, Cork, Limerick"],
   ["Dublin Business School", "DBS", "Dublin"],
 ];
-const COURSES = ["Computer Science", "Business", "Engineering", "Nursing", "Arts", "Science", "Law", "Medicine",
-  "Psychology", "Accounting & Finance", "Marketing", "Education", "Architecture", "Pharmacy", "Design", "Economics"];
+const COURSES = [
+  "Computer Science",
+  "Business",
+  "Engineering",
+  "Nursing",
+  "Arts",
+  "Science",
+  "Law",
+  "Medicine",
+  "Psychology",
+  "Accounting & Finance",
+  "Marketing",
+  "Education",
+  "Architecture",
+  "Pharmacy",
+  "Design",
+  "Economics",
+];
 
 // CAO institution codes for colleges whose course lists are in /courses.json.
 const CAO = { TCD: "TR", UCD: "DN", DCU: "DC", TUD: "TU", RCSI: "RC" };
@@ -381,7 +476,11 @@ function goStep(name, direction = 1) {
   const n = OB_PROGRESS[name] || 0;
   $("#ob-progress").classList.toggle("hide", !n || obMode === "link");
   [...$("#ob-progress").children].forEach((bar, i) => bar.classList.toggle("on", i < n));
-  $("#ob-back").hidden = name === "hello" || name === "done" || (obMode === "link" && !data) || (name === "college" && obMode === "edit" && !data);
+  $("#ob-back").hidden =
+    name === "hello" ||
+    name === "done" ||
+    (obMode === "link" && !data) ||
+    (name === "college" && obMode === "edit" && !data);
 
   if (name === "college") renderColleges();
   if (name === "course") prepareCourse();
@@ -401,7 +500,9 @@ document.querySelectorAll(".ob-next[data-go]").forEach((b) => b.addEventListener
 // Step 1: college
 function renderColleges() {
   const q = $("#college-search").value.trim().toLowerCase();
-  const matches = COLLEGES.filter(([name, short, place]) => !q || `${name} ${short} ${place}`.toLowerCase().includes(q));
+  const matches = COLLEGES.filter(
+    ([name, short, place]) => !q || `${name} ${short} ${place}`.toLowerCase().includes(q),
+  );
   const pick = (college, short, help) => {
     if (profile.college !== college) profile = { ...profile, course: "", courseCode: "" };
     profile = { ...profile, college, short, help: help || "" };
@@ -411,33 +512,51 @@ function renderColleges() {
   };
   $("#college-list").replaceChildren(
     ...matches.map(([name, short, place, help], i) =>
-      h("button", {
-        class: "option" + (profile.college === name ? " selected" : ""),
-        role: "option",
-        "aria-selected": String(profile.college === name),
-        style: { "--i": i, "--hue": hue(name) },
-        onclick: () => pick(name, short, help),
-      },
+      h(
+        "button",
+        {
+          class: "option" + (profile.college === name ? " selected" : ""),
+          role: "option",
+          "aria-selected": String(profile.college === name),
+          style: { "--i": i, "--hue": hue(name) },
+          onclick: () => pick(name, short, help),
+        },
         h("span", { class: "mono" }, short),
         h("span", { class: "label" }, h("b", {}, name), h("span", {}, place)),
         h("span", { class: "check" }),
       ),
     ),
-    h("button", {
-      class: "option muted",
-      style: { "--i": matches.length },
-      onclick: () => {
-        $("#college-other").hidden = false;
-        $("#college-other-input").focus();
+    h(
+      "button",
+      {
+        class: "option muted",
+        style: { "--i": matches.length },
+        onclick: () => {
+          $("#college-other").hidden = false;
+          $("#college-other-input").focus();
+        },
       },
-    }, h("span", { class: "mono" }, "+"), h("span", { class: "label" }, h("b", {}, "My college isn't listed")), h("span", {})),
+      h("span", { class: "mono" }, "+"),
+      h("span", { class: "label" }, h("b", {}, "My college isn't listed")),
+      h("span", {}),
+    ),
   );
 }
 $("#college-search").addEventListener("input", renderColleges);
 $("#college-other-next").addEventListener("click", () => {
   const name = $("#college-other-input").value.trim();
   if (!name) return $("#college-other-input").focus();
-  profile = { ...profile, college: name, short: name.split(/\s+/).map((w) => w[0]).join("").slice(0, 4).toUpperCase(), help: "" };
+  profile = {
+    ...profile,
+    college: name,
+    short: name
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 4)
+      .toUpperCase(),
+    help: "",
+  };
   store.set("profile", profile);
   goStep("course");
 });
@@ -465,13 +584,15 @@ function renderCourseList(list) {
   };
   $("#course-list").replaceChildren(
     ...matches.map(([code, name], i) =>
-      h("button", {
-        class: "option course-option" + (profile.courseCode === code ? " selected" : ""),
-        role: "option",
-        "aria-selected": String(profile.courseCode === code),
-        style: { "--i": Math.min(i, 12) },
-        onclick: () => pick(code, name),
-      },
+      h(
+        "button",
+        {
+          class: "option course-option" + (profile.courseCode === code ? " selected" : ""),
+          role: "option",
+          "aria-selected": String(profile.courseCode === code),
+          style: { "--i": Math.min(i, 12) },
+          onclick: () => pick(code, name),
+        },
         h("span", { class: "code" }, code),
         h("span", { class: "label" }, h("b", {}, name)),
         h("span", { class: "check" }),
@@ -495,12 +616,27 @@ function renderCourseChips() {
   const q = $("#course-input").value.trim().toLowerCase();
   const suggestions = COURSES.filter((c) => !q || c.toLowerCase().includes(q)).slice(0, 8);
   $("#course-suggest").replaceChildren(
-    ...suggestions.map((c, i) => h("button", { type: "button", style: { "--i": i }, onclick: () => { $("#course-input").value = c; renderCourseChips(); } }, c)),
+    ...suggestions.map((c, i) =>
+      h(
+        "button",
+        {
+          type: "button",
+          style: { "--i": i },
+          onclick: () => {
+            $("#course-input").value = c;
+            renderCourseChips();
+          },
+        },
+        c,
+      ),
+    ),
   );
   $("#course-next").disabled = !$("#course-input").value.trim();
 }
 $("#course-input").addEventListener("input", renderCourseChips);
-$("#course-input").addEventListener("keydown", (e) => { if (e.key === "Enter" && $("#course-input").value.trim()) $("#course-next").click(); });
+$("#course-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && $("#course-input").value.trim()) $("#course-next").click();
+});
 $("#course-next").addEventListener("click", () => {
   profile = { ...profile, course: $("#course-input").value.trim(), courseCode: "" };
   store.set("profile", profile);
@@ -509,8 +645,12 @@ $("#course-next").addEventListener("click", () => {
 
 // Step 3: year
 function prepareYear() {
-  $("#year-sub").textContent = [profile.courseCode, profile.course, profile.short || profile.college].filter(Boolean).join(" · ");
-  document.querySelectorAll(".year-grid button").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.year === String(profile.year))));
+  $("#year-sub").textContent = [profile.courseCode, profile.course, profile.short || profile.college]
+    .filter(Boolean)
+    .join(" · ");
+  document
+    .querySelectorAll(".year-grid button")
+    .forEach((b) => b.setAttribute("aria-checked", String(b.dataset.year === String(profile.year))));
 }
 document.querySelectorAll(".year-grid button").forEach((b) =>
   b.addEventListener("click", () => {
@@ -525,9 +665,11 @@ document.querySelectorAll(".year-grid button").forEach((b) =>
 function prepareLink() {
   $("#link-input").value = link || "";
   const name = profile.short && profile.short.length <= 5 ? profile.short : profile.college || "your college";
-  $("#link-sub").textContent = `Paste your timetable's calendar link from ${name}. It's how Studyslot reads your classes.`;
+  $("#link-sub").textContent =
+    `Paste your timetable's calendar link from ${name}. It's how Studyslot reads your classes.`;
   $("#help-college-title").textContent = `On ${name}'s timetable site`;
-  $("#help-college").textContent = profile.help ||
+  $("#help-college").textContent =
+    profile.help ||
     "Open your personal timetable online and look for Subscribe, Export, iCal or Add to calendar. Copy the link it gives you; it usually ends in .ics or starts with webcal://.";
 }
 
@@ -542,7 +684,8 @@ function showWelcome(error, mode = profile.course ? "link" : "first") {
 
 function finishOnboarding() {
   const thisWeek = classesOn(todayKey()).length;
-  $("#done-sub").textContent = `${profile.course ? profile.course + " · " : ""}${yearLabel(profile.year)}${thisWeek ? ` · ${thisWeek} class${thisWeek === 1 ? "" : "es"} today` : ""}`;
+  $("#done-sub").textContent =
+    `${profile.course ? profile.course + " · " : ""}${yearLabel(profile.year)}${thisWeek ? ` · ${thisWeek} class${thisWeek === 1 ? "" : "es"} today` : ""}`;
   goStep("done");
   setTimeout(() => {
     showApp();
@@ -559,7 +702,11 @@ function showApp() {
 function banner(message) {
   const el = $("#banner");
   el.hidden = !message;
-  if (message) el.replaceChildren(h("span", {}, message), h("button", { class: "text-btn", onclick: () => (el.hidden = true) }, "OK"));
+  if (message)
+    el.replaceChildren(
+      h("span", {}, message),
+      h("button", { class: "text-btn", onclick: () => (el.hidden = true) }, "OK"),
+    );
 }
 
 // ---------- Loading ----------
@@ -601,9 +748,11 @@ $("#link-form").addEventListener("submit", async (e) => {
   try {
     const result = await fetchTimetable(value);
     if (!result.classes.length) {
-      throw new Error(result.totalEntries
-        ? "That calendar has entries, but none look like upcoming classes. Is it the right link?"
-        : "That calendar is empty.");
+      throw new Error(
+        result.totalEntries
+          ? "That calendar has entries, but none look like upcoming classes. Is it the right link?"
+          : "That calendar is empty.",
+      );
     }
     link = value;
     data = result;
@@ -624,21 +773,29 @@ $("#link-form").addEventListener("submit", async (e) => {
 
 function groupRows(onChange) {
   return (data?.groupChoices || []).map((m) =>
-    h("div", { class: "choice", style: { "--hue": hue(m.title) } },
+    h(
+      "div",
+      { class: "choice", style: { "--hue": hue(m.title) } },
       h("span", {}, m.title),
-      h("div", { class: "pills", role: "group", "aria-label": `Group for ${m.title}` },
+      h(
+        "div",
+        { class: "pills", role: "group", "aria-label": `Group for ${m.title}` },
         [...m.groups, null].map((g) =>
-          h("button", {
-            class: (groups[m.title] || null) === g ? "active" : "",
-            "aria-pressed": String((groups[m.title] || null) === g),
-            onclick: () => {
-              if (g) groups[m.title] = g;
-              else delete groups[m.title];
-              store.set("groups", groups);
-              onChange();
-              render();
+          h(
+            "button",
+            {
+              class: (groups[m.title] || null) === g ? "active" : "",
+              "aria-pressed": String((groups[m.title] || null) === g),
+              onclick: () => {
+                if (g) groups[m.title] = g;
+                else delete groups[m.title];
+                store.set("groups", groups);
+                onChange();
+                render();
+              },
             },
-          }, g || "All"),
+            g || "All",
+          ),
         ),
       ),
     ),
@@ -657,7 +814,10 @@ function maybeAskGroups() {
 // ---------- Sharing (calendar feed + friend links) ----------
 
 const toB64url = (text) =>
-  btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 const fromB64url = (token) => {
   const b64 = token.replace(/-/g, "+").replace(/_/g, "/");
   const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
@@ -691,19 +851,27 @@ function fillSettings() {
   $("#friends-section").hidden = !friends.length;
   $("#friends-list").replaceChildren(
     ...friends.map((f) =>
-      h("div", { class: "choice", style: { "--hue": hue(f.name) } },
+      h(
+        "div",
+        { class: "choice", style: { "--hue": hue(f.name) } },
         h("span", {}, f.name),
-        h("button", {
-          class: "text-btn danger-text",
-          onclick: () => {
-            friends = friends.filter((x) => x.id !== f.id);
-            selectedFriends.delete(f.id);
-            try { localStorage.removeItem("studyslot.friend." + f.id); } catch {}
-            saveFriends();
-            fillSettings();
-            render();
+        h(
+          "button",
+          {
+            class: "text-btn danger-text",
+            onclick: () => {
+              friends = friends.filter((x) => x.id !== f.id);
+              selectedFriends.delete(f.id);
+              try {
+                localStorage.removeItem("studyslot.friend." + f.id);
+              } catch {}
+              saveFriends();
+              fillSettings();
+              render();
+            },
           },
-        }, "Remove"),
+          "Remove",
+        ),
       ),
     ),
   );
@@ -735,7 +903,11 @@ function friendId(friendLink) {
 }
 
 function parseFriendLink(text) {
-  const m = String(text).match(/[?&#]friend=([A-Za-z0-9_-]+)/) || String(text).trim().match(/^([A-Za-z0-9_-]{24,})$/);
+  const m =
+    String(text).match(/[?&#]friend=([A-Za-z0-9_-]+)/) ||
+    String(text)
+      .trim()
+      .match(/^([A-Za-z0-9_-]{24,})$/);
   if (!m) return null;
   try {
     const shared = JSON.parse(fromB64url(m[1]));
@@ -784,9 +956,12 @@ function friendClasses(friend) {
 
 // Free windows between 9:00 and 18:00 when nobody in the list has a class.
 function freeTogether(day, lists) {
-  const start = fromKey(day); start.setHours(9, 0, 0, 0);
-  const end = fromKey(day); end.setHours(18, 0, 0, 0);
-  const busy = lists.flat()
+  const start = fromKey(day);
+  start.setHours(9, 0, 0, 0);
+  const end = fromKey(day);
+  end.setHours(18, 0, 0, 0);
+  const busy = lists
+    .flat()
     .filter((c) => dayKey(new Date(c.start)) === day)
     .map((c) => [Math.max(Date.parse(c.start), +start), Math.min(Date.parse(c.end), +end)])
     .filter(([a, b]) => a < b)
@@ -806,16 +981,21 @@ function renderFriends() {
   const body = $("#friends-body");
   chips.replaceChildren(
     ...friends.map((f) =>
-      h("button", {
-        class: "friend-chip" + (selectedFriends.has(f.id) ? " on" : ""),
-        "aria-pressed": String(selectedFriends.has(f.id)),
-        style: { "--hue": hue(f.name) },
-        onclick: () => {
-          selectedFriends.has(f.id) ? selectedFriends.delete(f.id) : selectedFriends.add(f.id);
-          saveFriends();
-          renderFriends();
+      h(
+        "button",
+        {
+          class: "friend-chip" + (selectedFriends.has(f.id) ? " on" : ""),
+          "aria-pressed": String(selectedFriends.has(f.id)),
+          style: { "--hue": hue(f.name) },
+          onclick: () => {
+            selectedFriends.has(f.id) ? selectedFriends.delete(f.id) : selectedFriends.add(f.id);
+            saveFriends();
+            renderFriends();
+          },
         },
-      }, h("span", { class: "avatar" }, f.name.slice(0, 1).toUpperCase()), f.name),
+        h("span", { class: "avatar" }, f.name.slice(0, 1).toUpperCase()),
+        f.name,
+      ),
     ),
     h("button", { class: "friend-chip add", onclick: openAddFriend }, "+ Add"),
     h("button", { class: "friend-chip add", onclick: openShare }, "Share mine"),
@@ -824,10 +1004,14 @@ function renderFriends() {
   if (!friends.length) {
     chips.hidden = true;
     body.replaceChildren(
-      h("div", { class: "empty friends-empty" },
+      h(
+        "div",
+        { class: "empty friends-empty" },
         h("b", {}, "Find free time with friends"),
         "Swap Studyslot links with friends to see when you're all free and which classes you share.",
-        h("div", { class: "empty-actions" },
+        h(
+          "div",
+          { class: "empty-actions" },
           h("button", { class: "btn", onclick: openShare }, "Share my timetable"),
           h("button", { class: "row-btn", onclick: openAddFriend }, "Add a friend"),
         ),
@@ -850,22 +1034,35 @@ function renderFriends() {
   const theirs = picked.map(friendClasses);
   const free = freeTogether(friendDay, [mine, ...theirs]);
   const shared = mine.filter(
-    (c) => dayKey(new Date(c.start)) === friendDay &&
-      theirs.length && theirs.every((list) => list.some((o) => o.title === c.title && o.start === c.start)),
+    (c) =>
+      dayKey(new Date(c.start)) === friendDay &&
+      theirs.length &&
+      theirs.every((list) => list.some((o) => o.title === c.title && o.start === c.start)),
   );
   const names = picked.map((f) => f.name);
-  const who = names.length ? `You and ${names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names.at(-1) : names[0]}` : "You";
+  const who = names.length
+    ? `You and ${names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names.at(-1) : names[0]}`
+    : "You";
 
   body.replaceChildren(
-    ...friends.filter((f) => f.error).map((f) => h("p", { class: "banner" }, `Couldn't load ${f.name}'s timetable: ${f.error}`)),
-    h("div", { class: "day-strip", style: { "--days": days.length }, role: "tablist" },
+    ...friends
+      .filter((f) => f.error)
+      .map((f) => h("p", { class: "banner" }, `Couldn't load ${f.name}'s timetable: ${f.error}`)),
+    h(
+      "div",
+      { class: "day-strip", style: { "--days": days.length }, role: "tablist" },
       days.map((k) =>
-        h("button", {
-          role: "tab",
-          class: [k === friendDay && "active", k === todayKey() && "today"].filter(Boolean).join(" "),
-          "aria-selected": String(k === friendDay),
-          onclick: () => { friendDay = k; renderFriends(); },
-        },
+        h(
+          "button",
+          {
+            role: "tab",
+            class: [k === friendDay && "active", k === todayKey() && "today"].filter(Boolean).join(" "),
+            "aria-selected": String(k === friendDay),
+            onclick: () => {
+              friendDay = k;
+              renderFriends();
+            },
+          },
           fromKey(k).toLocaleDateString([], { weekday: "short" }),
           h("b", {}, String(fromKey(k).getDate())),
           h("span", { class: "count" }, `${freeTogether(k, [mine, ...theirs]).length} free`),
@@ -873,14 +1070,25 @@ function renderFriends() {
       ),
     ),
     h("div", { class: "day-head" }, `Free together`),
-    h("p", { class: "hint" }, `${who}, between 9:00 and 18:00 on ${fromKey(friendDay).toLocaleDateString([], { weekday: "long" })}.`),
+    h(
+      "p",
+      { class: "hint" },
+      `${who}, between 9:00 and 18:00 on ${fromKey(friendDay).toLocaleDateString([], { weekday: "long" })}.`,
+    ),
     ...(picked.length
       ? free.length
         ? free.map(([a, b]) =>
-            h("div", { class: "free-slot" },
-              h("span", { class: "slot-time" }, `${time(new Date(a).toISOString())}–${time(new Date(b).toISOString())}`),
+            h(
+              "div",
+              { class: "free-slot" },
+              h(
+                "span",
+                { class: "slot-time" },
+                `${time(new Date(a).toISOString())}–${time(new Date(b).toISOString())}`,
+              ),
               h("span", { class: "slot-len" }, duration(b - a)),
-            ))
+            ),
+          )
         : [h("div", { class: "empty" }, h("b", {}, "No free time together"), "Try another day.")]
       : [h("div", { class: "empty" }, "Tap a friend above to include them.")]),
     ...(shared.length ? [h("div", { class: "day-head" }, "In class together"), ...shared.map(classCard)] : []),
@@ -902,7 +1110,13 @@ function openShare() {
   $("#my-name").value = myName();
   $("#share-link").onclick = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: "My Studyslot timetable", text: "Add me on Studyslot to see when we're both free:", url }); } catch {}
+      try {
+        await navigator.share({
+          title: "My Studyslot timetable",
+          text: "Add me on Studyslot to see when we're both free:",
+          url,
+        });
+      } catch {}
     } else {
       copyText(url, $("#share-link"), "Send my link");
     }
@@ -924,7 +1138,8 @@ $("#friend-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const shared = parseFriendLink($("#friend-input").value);
   if (!shared) {
-    $("#friend-error").textContent = "That isn't a Studyslot friend link. Ask your friend to tap Share mine in Studyslot.";
+    $("#friend-error").textContent =
+      "That isn't a Studyslot friend link. Ask your friend to tap Share mine in Studyslot.";
     $("#friend-error").hidden = false;
     return;
   }
@@ -953,7 +1168,10 @@ function checkIncomingFriend() {
   $("#incoming-add").onclick = async () => {
     await addFriend(shared);
     closeSheets();
-    if (link) { view = "friends"; render(); }
+    if (link) {
+      view = "friends";
+      render();
+    }
   };
   $("#incoming-copy").onclick = () =>
     copyText(`${location.origin}/?friend=${toB64url(JSON.stringify(shared))}`, $("#incoming-copy"), "Copy link");
@@ -972,7 +1190,9 @@ function closeSheets() {
 }
 $("#scrim").addEventListener("click", closeSheets);
 document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheets));
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheets(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSheets();
+});
 
 $("#open-settings").addEventListener("click", () => {
   fillSettings();
@@ -1007,11 +1227,18 @@ $("#forget").addEventListener("click", () => {
   if (!forgetArmed) {
     forgetArmed = true;
     $("#forget").textContent = "Tap again to remove everything";
-    setTimeout(() => { forgetArmed = false; $("#forget").textContent = "Remove my timetable from this device"; }, 3000);
+    setTimeout(() => {
+      forgetArmed = false;
+      $("#forget").textContent = "Remove my timetable from this device";
+    }, 3000);
     return;
   }
   store.clear();
-  link = null; data = null; groups = {}; hidden = new Set(); profile = {};
+  link = null;
+  data = null;
+  groups = {};
+  hidden = new Set();
+  profile = {};
   closeSheets();
   showWelcome(null, "first");
 });
@@ -1031,9 +1258,14 @@ friends.forEach((f) => loadFriend(f));
 checkIncomingFriend();
 
 // Keep "Now" current and refresh when coming back to the app.
-setInterval(() => { if (!$("#app").hidden && view === "today") renderNowCard(); }, 60000);
+setInterval(() => {
+  if (!$("#app").hidden && view === "today") renderNowCard();
+}, 60000);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && link) { render(); refresh(); }
+  if (document.visibilityState === "visible" && link) {
+    render();
+    refresh();
+  }
 });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});

@@ -6,32 +6,130 @@
   font-display: swap;
 }
 :root {
-  --paper: #f5f6fa; --card: #ffffff; --ink: #18203a; --muted: #5d6680; --line: #e2e5ee; --accent: #2b4fd8; --highlight: #ffe15a;
+  --paper: #f5f6fa;
+  --card: #ffffff;
+  --ink: #18203a;
+  --muted: #5d6680;
+  --line: #e2e5ee;
+  --accent: #2b4fd8;
+  --highlight: #ffe15a;
   --display: "Bricolage Grotesque", -apple-system, "Segoe UI", system-ui, sans-serif;
   --body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --paper: #0e1220; --card: #171c2d; --ink: #e7eaf4; --muted: #a0a8bf; --line: #262c41; --accent: #8fa6ff; color-scheme: dark; }
+  :root {
+    --paper: #0e1220;
+    --card: #171c2d;
+    --ink: #e7eaf4;
+    --muted: #a0a8bf;
+    --line: #262c41;
+    --accent: #8fa6ff;
+    color-scheme: dark;
+  }
 }
-* { box-sizing: border-box; }
-html, body { background: var(--paper); }
-body { margin: 0; color: var(--ink); font: 17px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
-main { max-width: 680px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 28px) 20px calc(env(safe-area-inset-bottom) + 48px); }
-.back { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-weight: 600; text-decoration: none; margin-bottom: 18px; }
-h1 { font-family: var(--display); font-size: clamp(32px, 7vw, 44px); line-height: 1.05; letter-spacing: -.03em; margin: 0 0 6px; text-wrap: balance; }
-.updated { color: var(--muted); font-size: 15px; margin: 0 0 24px; }
-h2 { font-family: var(--display); font-size: 22px; letter-spacing: -.01em; margin: 34px 0 8px; text-wrap: balance; }
-h3 { font-size: 17px; margin: 20px 0 4px; }
-p, li { max-width: 65ch; }
-ul { padding-left: 1.2em; }
-li { margin: 4px 0; }
-a { color: var(--accent); }
-.summary { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--highlight); border-radius: 14px; padding: 6px 20px 10px; margin: 0 0 8px; }
-.summary h2 { margin-top: 14px; font-size: 18px; }
-.summary ul { padding-left: 1.1em; }
-table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 8px 0 4px; }
-th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-th { font-weight: 700; }
-.table-wrap { overflow-x: auto; }
-footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  background: var(--paper);
+}
+body {
+  margin: 0;
+  color: var(--ink);
+  font: 17px/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 28px) 20px calc(env(safe-area-inset-bottom) + 48px);
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+h1 {
+  font-family: var(--display);
+  font-size: clamp(32px, 7vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+.updated {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0 0 24px;
+}
+h2 {
+  font-family: var(--display);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  margin: 34px 0 8px;
+  text-wrap: balance;
+}
+h3 {
+  font-size: 17px;
+  margin: 20px 0 4px;
+}
+p,
+li {
+  max-width: 65ch;
+}
+ul {
+  padding-left: 1.2em;
+}
+li {
+  margin: 4px 0;
+}
+a {
+  color: var(--accent);
+}
+.summary {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--highlight);
+  border-radius: 14px;
+  padding: 6px 20px 10px;
+  margin: 0 0 8px;
+}
+.summary h2 {
+  margin-top: 14px;
+  font-size: 18px;
+}
+.summary ul {
+  padding-left: 1.1em;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  margin: 8px 0 4px;
+}
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-weight: 700;
+}
+.table-wrap {
+  overflow-x: auto;
+}
+footer {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 15px;
+}
