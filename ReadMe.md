@@ -54,7 +54,12 @@ npm run dev        # http://localhost:8787
 npm run deploy     # publishes to https://studyslot.<your-subdomain>.workers.dev
 ```
 
-It runs on Cloudflare's free plan, with no database and no secrets needed.
+It runs on Cloudflare's free plan with no database. One secret is needed, `SHARE_KEY`, which encrypts sharing links:
+
+```
+cp .dev.vars.example .dev.vars          # then put a random key in it, for npm run dev
+npx wrangler secret put SHARE_KEY       # once, for production
+```
 
 ## Privacy, legal and safety
 
@@ -63,7 +68,7 @@ It runs on Cloudflare's free plan, with no database and no secrets needed.
 - **No cookies.** Local storage is used only for features the student asks for, which is exempt from consent under S.I. 336/2011.
 - **Abuse protection:** per-visitor rate limit on timetable lookups (20 a minute) and per-student limit on calendar feeds (10 a minute). Links with passwords, raw IP addresses or unusual ports are rejected. Fetches time out after 12 s, and files over 6 MB are rejected. Only public addresses are fetched (`global_fetch_strictly_public`).
 - **Security headers** (`public/_headers`): strict Content-Security-Policy, no framing, no referrer, locked-down permissions.
-- Calendar-feed and friend links contain the student's timetable link (base64-encoded, not encrypted). Anyone with one can see that timetable, so the app tells students to share only with people they trust.
+- **Private sharing links:** calendar-feed and friend links carry the student's settings encrypted with AES-256-GCM (key derived from the `SHARE_KEY` secret), so a link can't be read or changed. Nothing is stored, so single links can't be revoked; rotating `SHARE_KEY` revokes all of them. Friends get a friend's classes, never their timetable link. Older base64 links work until 1 February 2027. See `src/share.js`.
 
 ## Before launch
 

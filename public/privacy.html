@@ -15,7 +15,7 @@
     <main>
       <a class="back" href="/">‹ Back to Studyslot</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 2 October 2026</p>
+      <p class="updated">Last updated 3 October 2026</p>
 
       <section class="summary" aria-label="Summary">
         <h2>The short version</h2>
@@ -46,7 +46,10 @@
       <ul>
         <li>Your timetable calendar link, and a copy of your timetable so the app works offline.</li>
         <li>Your college, course and year, the lab groups you chose, and modules you've hidden.</li>
-        <li>The name you give for friends, and the Studyslot links of any friends you add.</li>
+        <li>
+          The name you give for friends, and the Studyslot links of any friends you add (for friends added from an older
+          link, their timetable link too).
+        </li>
       </ul>
       <p>
         To delete it, use <b>Settings → Remove my timetable from this device</b>, remove friends in Settings, or clear
@@ -66,20 +69,42 @@
         discarded.
       </p>
 
+      <h3>Your sharing links</h3>
+      <p>
+        "Add to your calendar" and "Share with a friend" create links that contain your timetable link, your group
+        choices, hidden modules, time zone and the name you chose. These are <b>encrypted</b> (AES-256-GCM) with a key
+        that only Studyslot's server has, so anyone who sees a link can't read your timetable link from it or change it.
+        When the link is used, our server decrypts it, fetches your timetable, tidies it and sends it back. Nothing is
+        saved.
+      </p>
+      <p>
+        Because nothing is stored, we can't switch off one link on its own. If our key ever had to be changed, every
+        link would stop working at once and you would need to share again.
+      </p>
+      <p>
+        Links created before 3 October 2026 were encoded but <b>not encrypted</b>, so anyone with one could read the
+        timetable link inside. They keep working until <b>1 February 2027</b> so you have time to share again, and then
+        stop working.
+      </p>
+
       <h3>"Add to your calendar"</h3>
       <p>
-        This creates a calendar link that contains your timetable link and your choices, encoded but
-        <b>not encrypted</b>. Your calendar app (for example Apple, Google or Microsoft) stores that link and requests
-        it regularly to stay up to date. Their own privacy policies apply to what they do. To stop it, remove the
-        calendar subscription in your calendar app.
+        Your calendar app (for example Apple, Google or Microsoft) stores your calendar link and requests it regularly
+        to stay up to date. Their own privacy policies apply to what they do. To stop it, remove the calendar
+        subscription in your calendar app.
       </p>
 
       <h3>Friends</h3>
       <p>
-        Your friend link contains your timetable link, your choices and the name you chose. Anyone you send it to can
-        see your timetable in Studyslot, and it's saved on their device. Only share it with people you trust. We can't
-        recall a link once it's shared. If you need to stop someone seeing your timetable, ask your college whether they
-        can issue you a new calendar link.
+        When a friend adds your link, their device gets your chosen name and your classes (only your groups, without
+        modules you've hidden), but <b>not your timetable link</b>. Your classes are saved on their device so they can
+        see them offline. Anyone you send your link to can see your classes in Studyslot, so only share it with people
+        you trust. We can't recall a link once it's shared. If you need to stop someone seeing your timetable, ask your
+        college whether they can issue you a new calendar link.
+      </p>
+      <p>
+        To spot the same friend twice, our server also gives the app a short code worked out from the timetable link
+        with a one-way function. It can't be turned back into the link.
       </p>
       <p>Friends' links you add are saved only on your device and are used only to show your shared free time.</p>
 
