@@ -1,26 +1,42 @@
-// Studyslot server. Nothing is stored: every request carries the student's timetable link,
-// the timetable is fetched and cleaned, and the result is returned.
-//   GET /api/timetable?link=…&tz=…   cleaned classes for the app (plus week counts)
-//   GET /feed/<token>.ics            a cleaned calendar to subscribe to in Apple/Google Calendar;
-//                                    <token> packs the link, chosen groups and hidden modules
+// Studyslot server. Nothing is stored: every request carries the student's timetable link
+// (or an encrypted token holding it), the timetable is fetched and cleaned, and the result is returned.
+//   GET  /api/timetable?link=…&tz=…   cleaned classes for the app (plus week counts)
+//   POST /api/share                   { l, g, h, z, n } settings -> { token, id }: an encrypted token
+//                                     for calendar-feed and friend links (see share.js)
+//   GET  /api/friend?token=…&tz=…     a friend's name and classes from their token, without their link
+//   GET  /feed/<token>.ics            a cleaned calendar to subscribe to in Apple/Google Calendar
 import { extractClasses, groupChoicesFrom } from "./timetable.js";
 import { isValidTimeZone } from "./time.js";
 import { parseEvents } from "./ical.js";
+import { LEGACY_TOKENS_UNTIL, linkId, openLegacyToken, openToken, sealToken } from "./share.js";
 
 const DAY_MS = 86400000;
 const MAX_BYTES = 6 * 1024 * 1024;
+const MAX_SETTINGS_BYTES = 16 * 1024;
+
+const API = {
+  "GET /api/timetable": (request, url) => timetable(url),
+  "POST /api/share": (request, url, env) => createShare(request, env),
+  "GET /api/friend": (request, url, env) => friendTimetable(url, env),
+};
 
 export default {
-  // Only GET is used; rate limits and link checks below keep the timetable reader from being misused.
+  // Rate limits and link checks below keep the timetable reader from being misused.
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/api/timetable") {
+    const route = API[`${request.method} ${url.pathname}`];
+    if (route) {
       // One visitor can't use Studyslot to hammer college servers (or anyone else's).
       const ip = request.headers.get("CF-Connecting-IP") || "local";
       if (env.API_LIMITER && !(await env.API_LIMITER.limit({ key: ip })).success) {
         return json({ error: "Too many requests. Wait a minute and try again." }, 429);
       }
-      return timetable(url);
+      try {
+        return await route(request, url, env);
+      } catch (err) {
+        if (err instanceof LinkError) return json({ error: err.message }, err.status);
+        throw err;
+      }
     }
     const feed = url.pathname.match(/^\/feed\/([A-Za-z0-9_-]+)\.ics$/);
     if (request.method === "GET" && feed) {
@@ -28,7 +44,7 @@ export default {
       if (env.FEED_LIMITER && !(await env.FEED_LIMITER.limit({ key: feed[1].slice(0, 64) })).success) {
         return new Response("Too many requests.", { status: 429, headers: { "Retry-After": "60" } });
       }
-      return calendarFeed(feed[1], url);
+      return calendarFeed(feed[1], env);
     }
     return env.ASSETS.fetch(request);
   },
@@ -101,47 +117,107 @@ const mondayOf = (date) => {
 
 // ---------- App data ----------
 
+// The app shows from a week ago to about five months ahead.
+const appRange = (now) => [new Date(now - 7 * DAY_MS).toISOString(), new Date(now + 150 * DAY_MS).toISOString()];
+
 async function timetable(url) {
   const tz = url.searchParams.get("tz") || "UTC";
   if (!isValidTimeZone(tz)) return json({ error: "Unknown time zone." }, 400);
-  try {
-    const ics = await download(normalizeLink(url.searchParams.get("link")));
-    const now = Date.now();
-    // A wide range is read once for week numbers; the app gets the coming weeks in full.
-    const all = extractClasses(ics, tz, new Date(now - 200 * DAY_MS), new Date(now + 240 * DAY_MS));
-    const from = new Date(now - 7 * DAY_MS).toISOString();
-    const to = new Date(now + 150 * DAY_MS).toISOString();
-    const classes = all.filter((c) => c.end > from && c.start < to);
-    const weeks = {};
-    for (const c of all) {
-      const monday = mondayOf(new Date(c.start));
-      weeks[monday] = (weeks[monday] || 0) + 1;
-    }
-    return json({
-      name: ics.match(/\nX-WR-CALNAME:([^\r\n]*)/)?.[1]?.trim() || "",
-      classes,
-      groupChoices: groupChoicesFrom(classes),
-      weeks, // Monday (YYYY-MM-DD) -> number of classes, used for "Week 4 of 12"
-      totalEntries: classes.length ? undefined : parseEvents(ics).length,
-      fetchedAt: new Date(now).toISOString(),
-    });
-  } catch (err) {
-    if (err instanceof LinkError) return json({ error: err.message }, err.status);
-    throw err;
+  const ics = await download(normalizeLink(url.searchParams.get("link")));
+  const now = Date.now();
+  // A wide range is read once for week numbers; the app gets the coming weeks in full.
+  const all = extractClasses(ics, tz, new Date(now - 200 * DAY_MS), new Date(now + 240 * DAY_MS));
+  const [from, to] = appRange(now);
+  const classes = all.filter((c) => c.end > from && c.start < to);
+  const weeks = {};
+  for (const c of all) {
+    const monday = mondayOf(new Date(c.start));
+    weeks[monday] = (weeks[monday] || 0) + 1;
   }
+  return json({
+    name: ics.match(/\nX-WR-CALNAME:([^\r\n]*)/)?.[1]?.trim() || "",
+    classes,
+    groupChoices: groupChoicesFrom(classes),
+    weeks, // Monday (YYYY-MM-DD) -> number of classes, used for "Week 4 of 12"
+    totalEntries: classes.length ? undefined : parseEvents(ics).length,
+    fetchedAt: new Date(now).toISOString(),
+  });
+}
+
+// ---------- Sharing (encrypted tokens, see share.js) ----------
+
+// Only the fields the app sends, with sane types and sizes, go into a token.
+function cleanSettings(raw) {
+  if (!raw || typeof raw !== "object") throw new LinkError("Invalid sharing settings.", 400);
+  const strings = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string").slice(0, 200) : []);
+  const groups = raw.g && typeof raw.g === "object" && !Array.isArray(raw.g) ? raw.g : {};
+  return {
+    l: normalizeLink(raw.l),
+    g: Object.fromEntries(
+      Object.entries(groups)
+        .filter(([, v]) => typeof v === "string")
+        .slice(0, 200),
+    ),
+    h: strings(raw.h),
+    z: typeof raw.z === "string" && isValidTimeZone(raw.z) ? raw.z : "UTC",
+    n: typeof raw.n === "string" ? raw.n.trim().slice(0, 40) : "",
+  };
+}
+
+async function createShare(request, env) {
+  if (!env.SHARE_KEY) return json({ error: "Sharing isn't available right now. Try again later." }, 503);
+  const text = await request.text();
+  if (text.length > MAX_SETTINGS_BYTES) return json({ error: "Too many settings to share." }, 413);
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return json({ error: "Invalid sharing settings." }, 400);
+  }
+  const settings = cleanSettings(raw);
+  return json({ token: await sealToken(settings, env.SHARE_KEY), id: await linkId(settings.l, env.SHARE_KEY) });
+}
+
+/**
+ * Settings from a feed or friend token: { settings, legacy } or null. Old unencrypted tokens
+ * are accepted (legacy: true) until LEGACY_TOKENS_UNTIL if `allowLegacy` is set.
+ */
+async function readToken(token, env, allowLegacy) {
+  const settings = env.SHARE_KEY ? await openToken(token, env.SHARE_KEY) : null;
+  if (settings?.l) return { settings, legacy: false };
+  const old = allowLegacy && openLegacyToken(token);
+  if (old?.l) return { settings: old, legacy: true };
+  return null;
+}
+
+const visibleFor = (classes, settings) => {
+  const groups = settings.g || {};
+  const hidden = new Set(settings.h || []);
+  return classes.filter((c) => !hidden.has(c.title) && (!c.group || !groups[c.title] || groups[c.title] === c.group));
+};
+
+// A friend's classes, filtered by their own groups and hidden modules. Their link isn't returned.
+async function friendTimetable(url, env) {
+  if (!env.SHARE_KEY) return json({ error: "Friends aren't available right now. Try again later." }, 503);
+  const opened = await readToken(url.searchParams.get("token") || "", env, false);
+  if (!opened) return json({ error: "That friend link isn't valid. Ask your friend to share it again." }, 400);
+  const { settings } = opened;
+  const requested = url.searchParams.get("tz");
+  const tz = isValidTimeZone(settings.z) ? settings.z : requested && isValidTimeZone(requested) ? requested : "UTC";
+  const link = normalizeLink(settings.l);
+  const ics = await download(link);
+  const now = Date.now();
+  const [from, to] = appRange(now);
+  const classes = extractClasses(ics, tz, new Date(from), new Date(to)).filter((c) => c.end > from && c.start < to);
+  return json({
+    id: await linkId(link, env.SHARE_KEY),
+    name: settings.n || "",
+    classes: visibleFor(classes, settings),
+    fetchedAt: new Date(now).toISOString(),
+  });
 }
 
 // ---------- Clean calendar feed ----------
-
-function decodeToken(token) {
-  try {
-    const b64 = token.replace(/-/g, "+").replace(/_/g, "/");
-    const bytes = Uint8Array.from(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)), (c) => c.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-}
 
 const escapeText = (s) =>
   String(s)
@@ -162,12 +238,17 @@ async function hashId(text) {
     .join("");
 }
 
-async function calendarFeed(token) {
-  const settings = decodeToken(token);
-  if (!settings?.l) return new Response("Invalid Studyslot calendar link.", { status: 400 });
+async function calendarFeed(token, env) {
+  const opened = await readToken(token, env, true);
+  if (!opened) return new Response("Invalid Studyslot calendar link.", { status: 400 });
+  const { settings, legacy } = opened;
+  if (legacy && Date.now() >= LEGACY_TOKENS_UNTIL) {
+    return new Response(
+      "This Studyslot calendar link has expired. Open Studyslot, go to Settings, and add your calendar again.",
+      { status: 410 },
+    );
+  }
   const tz = settings.z && isValidTimeZone(settings.z) ? settings.z : "UTC";
-  const groups = settings.g || {};
-  const hidden = new Set(settings.h || []);
   let ics;
   try {
     ics = await download(normalizeLink(settings.l));
@@ -177,8 +258,9 @@ async function calendarFeed(token) {
     throw err;
   }
   const now = Date.now();
-  const classes = extractClasses(ics, tz, new Date(now - 14 * DAY_MS), new Date(now + 180 * DAY_MS)).filter(
-    (c) => !hidden.has(c.title) && (!c.group || !groups[c.title] || groups[c.title] === c.group),
+  const classes = visibleFor(
+    extractClasses(ics, tz, new Date(now - 14 * DAY_MS), new Date(now + 180 * DAY_MS)),
+    settings,
   );
 
   const stamp = icsTime(new Date(now).toISOString());
@@ -190,7 +272,10 @@ async function calendarFeed(token) {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeText(name)}`,
-    "X-WR-CALDESC:Your college timetable, cleaned up by Studyslot",
+    legacy
+      ? "X-WR-CALDESC:This calendar link is out of date and will stop working on 1 February 2027. " +
+        "Open Studyslot\\, go to Settings → Add to your calendar\\, and add it again."
+      : "X-WR-CALDESC:Your college timetable\\, cleaned up by Studyslot",
     "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
     "X-PUBLISHED-TTL:PT6H",
   ];

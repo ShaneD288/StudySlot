@@ -2,6 +2,7 @@ import { addDays, dayKey, duration, fromKey, mondayOf } from "./lib/dates.js";
 import { weekLabel as weekLabelFor } from "./lib/weeks.js";
 import { classesInCommon, filterClasses } from "./lib/classes.js";
 import { freeTogether } from "./lib/free-time.js";
+import { parseFriendLink } from "./lib/share-links.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -710,6 +711,7 @@ $("#link-form").addEventListener("submit", async (e) => {
     data = result;
     store.set("link", link);
     store.set("data", data);
+    store.set("privateLinksNotice", true);
     view = "today";
     finishOnboarding();
   } catch (err) {
@@ -765,23 +767,50 @@ function maybeAskGroups() {
 
 // ---------- Sharing (calendar feed + friend links) ----------
 
-const toB64url = (text) =>
-  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-const fromB64url = (token) => {
-  const b64 = token.replace(/-/g, "+").replace(/_/g, "/");
-  const bin = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
-  return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
-};
 const myName = () => store.get("name") || data?.name || "";
-// Everything needed to rebuild my cleaned timetable: link, groups, hidden modules, time zone, name.
-const myToken = () => toB64url(JSON.stringify({ l: link, g: groups, h: [...hidden], z: TZ, n: myName() }));
 
-function feedUrls() {
-  const https = `${location.origin}/feed/${myToken()}.ics`;
-  return { https, webcal: https.replace(/^https?:/, "webcal:") };
+// Everything needed to rebuild my cleaned timetable (link, groups, hidden modules, time zone,
+// name), encrypted by the server into a token that can't be read or changed (src/share.js).
+// The token is saved and reused until the settings change. Returns { token, id }.
+async function myShare() {
+  const settings = JSON.stringify({ l: link, g: groups, h: [...hidden], z: TZ, n: myName() });
+  const saved = store.get("share");
+  if (saved?.settings === settings) return saved;
+  const res = await fetch("/api/share", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: settings,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.token) throw new Error(body.error || "Couldn't create your link. Check your connection.");
+  const share = { settings, token: body.token, id: body.id };
+  store.set("share", share);
+  return share;
+}
+
+// Calendar-feed links for the current settings, once the server has made the token.
+let feeds = null;
+let feedRun = 0;
+async function prepareFeeds() {
+  const run = ++feedRun;
+  feeds = null;
+  $("#feed-status").hidden = false;
+  $("#feed-status").textContent = "Preparing your calendar link…";
+  try {
+    const https = `${location.origin}/feed/${(await myShare()).token}.ics`;
+    if (run !== feedRun) return; // settings changed while waiting
+    feeds = { https, webcal: https.replace(/^https?:/, "webcal:") };
+    $("#feed-apple").href = feeds.webcal;
+    $("#feed-google").href = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feeds.webcal)}`;
+    $("#feed-status").hidden = true;
+  } catch (err) {
+    if (run === feedRun) $("#feed-status").textContent = err.message;
+  }
+}
+for (const id of ["#feed-apple", "#feed-google"]) {
+  $(id).addEventListener("click", (e) => {
+    if (!feeds) e.preventDefault();
+  });
 }
 
 async function copyText(text, button, label) {
@@ -794,12 +823,12 @@ async function copyText(text, button, label) {
   setTimeout(() => (button.textContent = label), 2000);
 }
 
-$("#feed-copy").addEventListener("click", () => copyText(feedUrls().https, $("#feed-copy"), "Copy calendar link"));
+$("#feed-copy").addEventListener("click", () => {
+  if (feeds) copyText(feeds.https, $("#feed-copy"), "Copy calendar link");
+});
 
 function fillSettings() {
-  const feeds = feedUrls();
-  $("#feed-apple").href = feeds.webcal;
-  $("#feed-google").href = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feeds.webcal)}`;
+  prepareFeeds();
   $("#friends-section").hidden = !friends.length;
   $("#friends-list").replaceChildren(
     ...friends.map((f) =>
@@ -839,6 +868,7 @@ function fillSettings() {
         if (toggle.checked) hidden.delete(t);
         else hidden.add(t);
         store.set("hidden", [...hidden]);
+        prepareFeeds();
         render();
       });
       return h("label", { class: "choice", style: { "--hue": hue(t) } }, h("span", {}, t), toggle);
@@ -848,41 +878,57 @@ function fillSettings() {
 
 // ---------- Friends ----------
 
+// Friends added from a private link keep only their token (t): the server sends back their name
+// and classes but never their timetable link. Friends added from an older link keep the link (l)
+// and their choices (g, h) until those links stop working.
+
 function friendId(friendLink) {
   let n = 0;
   for (const ch of friendLink) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
   return "f" + n.toString(36);
 }
 
-function parseFriendLink(text) {
-  const m =
-    String(text).match(/[?&#]friend=([A-Za-z0-9_-]+)/) ||
-    String(text)
-      .trim()
-      .match(/^([A-Za-z0-9_-]{24,})$/);
-  if (!m) return null;
-  try {
-    const shared = JSON.parse(fromB64url(m[1]));
-    return shared.l ? shared : null;
-  } catch {
-    return null;
-  }
-}
+const OLD_LINK = "older links stop working on 1 February 2027";
 
 function saveFriends() {
   store.set("friends", friends);
   store.set("selectedFriends", [...selectedFriends]);
 }
 
-async function addFriend(shared) {
-  const id = friendId(shared.l);
-  const existing = friends.find((f) => f.id === id);
-  const friend = { id, name: shared.n || "Friend", l: shared.l, g: shared.g || {}, h: shared.h || [] };
-  if (existing) Object.assign(existing, friend);
+async function fetchFriend(token) {
+  const res = await fetch(`/api/friend?token=${encodeURIComponent(token)}&tz=${encodeURIComponent(TZ)}`);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || "Couldn't read your friend's timetable.");
+  return body;
+}
+
+/** Adds a friend from parseFriendLink's result. Throws if the link doesn't work. */
+async function addFriend(parsed) {
+  let friend;
+  if (parsed.legacy) {
+    const shared = parsed.legacy;
+    friend = { id: friendId(shared.l), name: shared.n || "Friend", l: shared.l, g: shared.g || {}, h: shared.h || [] };
+  } else {
+    const loaded = await fetchFriend(parsed.token);
+    const mine = link ? await myShare().catch(() => null) : null;
+    if (mine && loaded.id === mine.id) throw new Error("That's your own timetable.");
+    friend = { id: loaded.id, name: loaded.name || "Friend", t: parsed.token, g: {}, h: [] };
+    store.set("friend." + friend.id, { classes: loaded.classes, fetchedAt: loaded.fetchedAt });
+    // A friend who shared again replaces their entry from an older link.
+    for (const old of friends.filter((f) => f.l && f.name === friend.name)) {
+      selectedFriends.delete(old.id);
+      try {
+        localStorage.removeItem("studyslot.friend." + old.id);
+      } catch {}
+    }
+    friends = friends.filter((f) => !(f.l && f.name === friend.name));
+  }
+  const index = friends.findIndex((f) => f.id === friend.id);
+  if (index >= 0) friends[index] = friend;
   else friends.push(friend);
-  selectedFriends.add(id);
+  selectedFriends.add(friend.id);
   saveFriends();
-  await loadFriend(friend, true);
+  if (parsed.legacy) await loadFriend(friend, true);
   return friend;
 }
 
@@ -890,7 +936,7 @@ async function loadFriend(friend, force = false) {
   const cached = store.get("friend." + friend.id);
   if (!force && cached && Date.now() - Date.parse(cached.fetchedAt) < STALE_MS) return;
   try {
-    const d = await fetchTimetable(friend.l);
+    const d = friend.t ? await fetchFriend(friend.t) : await fetchTimetable(friend.l);
     store.set("friend." + friend.id, { classes: d.classes, fetchedAt: d.fetchedAt });
     delete friend.error;
   } catch (err) {
@@ -968,6 +1014,15 @@ function renderFriends() {
     ...friends
       .filter((f) => f.error)
       .map((f) => h("p", { class: "banner" }, `Couldn't load ${f.name}'s timetable: ${f.error}`)),
+    ...friends
+      .filter((f) => f.l && !f.error)
+      .map((f) =>
+        h(
+          "p",
+          { class: "banner" },
+          `${f.name} was added with an older, less private link (${OLD_LINK}). Ask them to share their Studyslot link again.`,
+        ),
+      ),
     h(
       "div",
       { class: "day-strip", style: { "--days": days.length }, role: "tablist" },
@@ -1016,9 +1071,21 @@ function renderFriends() {
 }
 
 // Share my timetable with a friend (QR code + link).
-function openShare() {
-  const url = `${location.origin}/?friend=${myToken()}`;
+async function openShare() {
   const box = $("#qr");
+  const button = $("#share-link");
+  box.textContent = "Creating your private link…";
+  button.disabled = true;
+  $("#my-name").value = myName();
+  openSheet($("#share-sheet"));
+  let url;
+  try {
+    url = `${location.origin}/?friend=${(await myShare()).token}`;
+  } catch (err) {
+    box.textContent = err.message;
+    return;
+  }
+  button.disabled = false;
   if (window.qrcode) {
     const qr = window.qrcode(0, "L");
     qr.addData(url);
@@ -1027,8 +1094,7 @@ function openShare() {
   } else {
     box.textContent = "QR codes need an internet connection. Use Send my link instead.";
   }
-  $("#my-name").value = myName();
-  $("#share-link").onclick = async () => {
+  button.onclick = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
@@ -1038,10 +1104,9 @@ function openShare() {
         });
       } catch {}
     } else {
-      copyText(url, $("#share-link"), "Send my link");
+      copyText(url, button, "Send my link");
     }
   };
-  openSheet($("#share-sheet"));
 }
 $("#my-name").addEventListener("change", () => {
   store.set("name", $("#my-name").value.trim());
@@ -1056,21 +1121,23 @@ function openAddFriend() {
 
 $("#friend-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const shared = parseFriendLink($("#friend-input").value);
-  if (!shared) {
-    $("#friend-error").textContent =
-      "That isn't a Studyslot friend link. Ask your friend to tap Share mine in Studyslot.";
+  const showError = (message) => {
+    $("#friend-error").textContent = message;
     $("#friend-error").hidden = false;
-    return;
-  }
-  if (shared.l === link) {
-    $("#friend-error").textContent = "That's your own timetable.";
-    $("#friend-error").hidden = false;
-    return;
-  }
+  };
+  const parsed = parseFriendLink($("#friend-input").value);
+  if (!parsed) return showError("That isn't a Studyslot friend link. Ask your friend to tap Share mine in Studyslot.");
+  if (parsed.expired)
+    return showError("That's an old Studyslot link that no longer works. Ask your friend to share it again.");
+  if (parsed.legacy?.l === link) return showError("That's your own timetable.");
   $("#friend-submit").disabled = true;
-  await addFriend(shared);
-  $("#friend-submit").disabled = false;
+  try {
+    await addFriend(parsed);
+  } catch (err) {
+    return showError(err.message);
+  } finally {
+    $("#friend-submit").disabled = false;
+  }
   closeSheets();
   view = "friends";
   render();
@@ -1078,15 +1145,36 @@ $("#friend-form").addEventListener("submit", async (e) => {
 
 // Opened someone's friend link (?friend=…).
 function checkIncomingFriend() {
-  const shared = parseFriendLink(location.search + location.hash);
-  if (!shared) return;
+  const parsed = parseFriendLink(location.search + location.hash);
+  if (!parsed) return;
   history.replaceState(null, "", location.pathname);
-  if (shared.l === link) return;
-  const name = shared.n || "A friend";
-  $("#incoming-title").textContent = `Add ${name}?`;
-  $("#incoming-text").textContent = `${name} shared their timetable with you. Add them to see when you're both free.`;
+  if (parsed.legacy?.l === link) return;
+  const describe = (name) => {
+    $("#incoming-title").textContent = `Add ${name}?`;
+    $("#incoming-text").textContent =
+      `${name} shared their timetable with you. Add them to see when you're both free.` +
+      (parsed.legacy ? ` This is an older, less private link (${OLD_LINK}); ask them to share it again.` : "");
+  };
+  describe(parsed.legacy?.n || "your friend");
+  $("#incoming-add").hidden = false;
+  if (parsed.expired) {
+    $("#incoming-title").textContent = "This link has expired";
+    $("#incoming-text").textContent =
+      "It's an old Studyslot link that no longer works. Ask whoever sent it to share it again.";
+    $("#incoming-add").hidden = true;
+  } else if (parsed.token && !parsed.legacy) {
+    // Show the friend's name once the server has read the link.
+    fetchFriend(parsed.token)
+      .then((d) => d.name && describe(d.name))
+      .catch(() => {});
+  }
   $("#incoming-add").onclick = async () => {
-    await addFriend(shared);
+    try {
+      await addFriend(parsed);
+    } catch (err) {
+      $("#incoming-text").textContent = err.message;
+      return;
+    }
     closeSheets();
     if (link) {
       view = "friends";
@@ -1094,7 +1182,7 @@ function checkIncomingFriend() {
     }
   };
   $("#incoming-copy").onclick = () =>
-    copyText(`${location.origin}/?friend=${toB64url(JSON.stringify(shared))}`, $("#incoming-copy"), "Copy link");
+    copyText(`${location.origin}/?friend=${parsed.token}`, $("#incoming-copy"), "Copy link");
   openSheet($("#incoming"));
 }
 
@@ -1176,6 +1264,30 @@ if (link && data) {
 
 friends.forEach((f) => loadFriend(f));
 checkIncomingFriend();
+
+// Sharing links became private (encrypted). Tell existing students once to share again.
+if (link && !store.get("privateLinksNotice")) {
+  const notice = $("#notice");
+  notice.hidden = false;
+  notice.replaceChildren(
+    h(
+      "span",
+      {},
+      `Studyslot links are now private. If you've added your timetable to a calendar app or shared it with friends, please do it again (${OLD_LINK}).`,
+    ),
+    h(
+      "button",
+      {
+        class: "text-btn",
+        onclick: () => {
+          store.set("privateLinksNotice", true);
+          notice.hidden = true;
+        },
+      },
+      "OK",
+    ),
+  );
+}
 
 // Keep "Now" current and refresh when coming back to the app.
 setInterval(() => {

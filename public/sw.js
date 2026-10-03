@@ -1,6 +1,6 @@
 // Keeps the app itself available offline. Timetable data is saved by the app on the device;
 // /api requests always go to the network.
-const VERSION = "studyslot-v3";
+const VERSION = "studyslot-v4";
 const SHELL = [
   "/",
   "/app.css",
@@ -9,6 +9,7 @@ const SHELL = [
   "/lib/weeks.js",
   "/lib/classes.js",
   "/lib/free-time.js",
+  "/lib/share-links.js",
   "/courses.json",
   "/fonts/bricolage-grotesque-latin.woff2",
   "/vendor/qrcode.min.js",

@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `npm run dev` (that file is gitignored).
+# SHARE_KEY encrypts calendar-feed and friend links. Use 32+ random characters, e.g.:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+# In production it's a Worker secret: npx wrangler secret put SHARE_KEY
+SHARE_KEY=replace-with-at-least-32-random-characters
