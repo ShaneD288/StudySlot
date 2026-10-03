@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "studyslot",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  // Only fetch public addresses when reading timetable links.
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/feed/*"] },
+
+  // Abuse protection: per-visitor limit on timetable lookups, per-student limit on calendar feeds.
+  "ratelimits": [
+    { "name": "API_LIMITER", "namespace_id": "2201", "simple": { "limit": 20, "period": 60 } },
+    { "name": "FEED_LIMITER", "namespace_id": "2202", "simple": { "limit": 10, "period": 60 } }
+  ]
+
+  // Own domain: after buying e.g. studyslot.ie and adding it to Cloudflare, uncomment and deploy.
+  // "routes": [{ "pattern": "studyslot.ie", "custom_domain": true }]
+}

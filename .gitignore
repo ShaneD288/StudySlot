@@ -1,0 +1,17 @@
+# Dependencies and local Cloudflare dev data (can contain request logs)
+node_modules/
+.wrangler/
+
+# Secrets: never commit these
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+
+# Logs and OS clutter
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

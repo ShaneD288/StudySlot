@@ -1,0 +1,17 @@
+{
+  "name": "studyslot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Studyslot: any student's college timetable, cleaned up. No accounts; nothing stored on the server.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "icons": "node scripts/make-icons.js",
+    "predeploy": "node scripts/check-launch.js",
+    "fetch-courses": "node scripts/fetch-courses.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}
