@@ -1,3 +1,8 @@
+import { addDays, dayKey, duration, fromKey, mondayOf } from "./lib/dates.js";
+import { weekLabel as weekLabelFor } from "./lib/weeks.js";
+import { classesInCommon, filterClasses } from "./lib/classes.js";
+import { freeTogether } from "./lib/free-time.js";
+
 const $ = (sel) => document.querySelector(sel);
 
 // Element builder: h("div", { class: "x", onclick, style: { "--hue": 210 } }, "text", child...)
@@ -62,24 +67,8 @@ let selectedDay = null;
 
 // ---------- Dates ----------
 
-const pad = (n) => String(n).padStart(2, "0");
-const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const fromKey = (k) => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
-const addDays = (k, n) => {
-  const d = fromKey(k);
-  d.setDate(d.getDate() + n);
-  return dayKey(d);
-};
 const todayKey = () => dayKey(new Date());
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-const mondayOf = (k) => addDays(k, -((fromKey(k).getDay() + 6) % 7));
-
-function duration(ms) {
-  const min = Math.round(ms / 60000);
-  if (min < 60) return `${min} min`;
-  const hrs = Math.floor(min / 60);
-  return min % 60 ? `${hrs}h ${min % 60}m` : `${hrs}h`;
-}
 
 function when(iso) {
   const d = new Date(iso);
@@ -91,39 +80,7 @@ function when(iso) {
 
 // ---------- Week numbers ----------
 
-const weeksBetween = (a, b) => Math.round((fromKey(b) - fromKey(a)) / (7 * 86400000));
-
-// Terms are runs of weeks with classes; up to two empty weeks (e.g. reading week) stay inside a term.
-function terms() {
-  const weeks = data?.weeks || {};
-  const mondays = Object.keys(weeks)
-    .filter((k) => weeks[k] > 0)
-    .sort();
-  const out = [];
-  for (const m of mondays) {
-    const t = out.at(-1);
-    if (t && weeksBetween(t.last, m) <= 3) t.last = m;
-    else out.push({ first: m, last: m });
-  }
-  return out;
-}
-
-/** "Week 4 of 12", "Week 7 of 12 · no classes", "Classes start in 2 weeks"… for the week of `monday`. */
-function weekLabel(monday) {
-  if (!data?.weeks) return "";
-  const all = terms();
-  const term = all.find((t) => t.first <= monday && monday <= t.last);
-  if (term) {
-    const label = `Week ${weeksBetween(term.first, monday) + 1} of ${weeksBetween(term.first, term.last) + 1}`;
-    return data.weeks[monday] ? label : `${label} · no classes`;
-  }
-  const next = all.find((t) => t.first > monday);
-  if (next) {
-    const w = weeksBetween(monday, next.first);
-    return w === 1 ? "Classes start next week" : `Classes start in ${w} weeks`;
-  }
-  return all.length ? "Term finished" : "";
-}
+const weekLabel = (monday) => weekLabelFor(data?.weeks, monday);
 
 // ---------- Classes ----------
 
@@ -135,11 +92,7 @@ function hue(title) {
   return HUES[n % HUES.length];
 }
 
-function visibleClasses() {
-  return (data?.classes || []).filter(
-    (c) => !hidden.has(c.title) && (!c.group || !groups[c.title] || groups[c.title] === c.group),
-  );
-}
+const visibleClasses = () => filterClasses(data?.classes, groups, hidden);
 const classesOn = (k) => visibleClasses().filter((c) => dayKey(new Date(c.start)) === k);
 
 function classCard(c) {
@@ -947,34 +900,7 @@ async function loadFriend(friend, force = false) {
   if (view === "friends") renderFriends();
 }
 
-function friendClasses(friend) {
-  const hiddenForThem = new Set(friend.h);
-  return (store.get("friend." + friend.id)?.classes || []).filter(
-    (c) => !hiddenForThem.has(c.title) && (!c.group || !friend.g[c.title] || friend.g[c.title] === c.group),
-  );
-}
-
-// Free windows between 9:00 and 18:00 when nobody in the list has a class.
-function freeTogether(day, lists) {
-  const start = fromKey(day);
-  start.setHours(9, 0, 0, 0);
-  const end = fromKey(day);
-  end.setHours(18, 0, 0, 0);
-  const busy = lists
-    .flat()
-    .filter((c) => dayKey(new Date(c.start)) === day)
-    .map((c) => [Math.max(Date.parse(c.start), +start), Math.min(Date.parse(c.end), +end)])
-    .filter(([a, b]) => a < b)
-    .sort((x, y) => x[0] - y[0]);
-  const free = [];
-  let cursor = +start;
-  for (const [a, b] of busy) {
-    if (a - cursor >= 30 * 60000) free.push([cursor, a]);
-    cursor = Math.max(cursor, b);
-  }
-  if (+end - cursor >= 30 * 60000) free.push([cursor, +end]);
-  return free;
-}
+const friendClasses = (friend) => filterClasses(store.get("friend." + friend.id)?.classes, friend.g, friend.h);
 
 function renderFriends() {
   const chips = $("#friend-chips");
@@ -1033,12 +959,7 @@ function renderFriends() {
   const mine = visibleClasses();
   const theirs = picked.map(friendClasses);
   const free = freeTogether(friendDay, [mine, ...theirs]);
-  const shared = mine.filter(
-    (c) =>
-      dayKey(new Date(c.start)) === friendDay &&
-      theirs.length &&
-      theirs.every((list) => list.some((o) => o.title === c.title && o.start === c.start)),
-  );
+  const shared = classesInCommon(mine, theirs, friendDay);
   const names = picked.map((f) => f.name);
   const who = names.length
     ? `You and ${names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names.at(-1) : names[0]}`

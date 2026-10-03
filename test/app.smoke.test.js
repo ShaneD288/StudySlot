@@ -1,0 +1,90 @@
+// @vitest-environment happy-dom
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+// Boots the real app (public/index.html + public/app.js) with a saved timetable on the
+// "device", to check the app still starts and renders after changes to public/lib.
+const html = readFileSync(resolve(import.meta.dirname, "../public/index.html"), "utf8");
+const body = html.slice(html.indexOf("<body>") + 6, html.indexOf("</body>")).replace(/<script[\s\S]*?<\/script>/g, "");
+
+const NOW = new Date("2026-09-22T10:30:00+01:00"); // Tuesday, during the Lab
+const iso = (local) => new Date(`${local}+01:00`).toISOString();
+const saved = {
+  name: "Alex Example",
+  fetchedAt: NOW.toISOString(),
+  weeks: { "2026-09-21": 3 },
+  groupChoices: [{ title: "Mobile Software Development", groups: ["A", "B"] }],
+  classes: [
+    {
+      id: "1",
+      title: "Mobile Software Development",
+      type: "Lab",
+      group: "A",
+      room: "CQ-227",
+      start: iso("2026-09-22T10:00"),
+      end: iso("2026-09-22T12:00"),
+    },
+    {
+      id: "2",
+      title: "Mobile Software Development",
+      type: "Lab",
+      group: "B",
+      room: "CQ-228",
+      start: iso("2026-09-22T10:00"),
+      end: iso("2026-09-22T12:00"),
+    },
+    {
+      id: "3",
+      title: "Databases",
+      type: "Tutorial",
+      group: "",
+      room: "Q-013",
+      start: iso("2026-09-22T14:00"),
+      end: iso("2026-09-22T15:00"),
+    },
+  ],
+};
+
+beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => new Response("{}", { status: 500 })),
+  );
+  document.body.innerHTML = body;
+  const set = (key, value) => localStorage.setItem("studyslot." + key, JSON.stringify(value));
+  set("link", "https://timetable.example.ie/abc.ics");
+  set("data", saved);
+  set("groups", { "Mobile Software Development": "A" });
+  set("askedGroups", true);
+  set("installDismissed", true);
+  await import("../public/app.js");
+});
+
+describe("app smoke test", () => {
+  it("shows the timetable, not the welcome screen", () => {
+    expect(document.querySelector("#app").hidden).toBe(false);
+    expect(document.querySelector("#welcome").hidden).toBe(true);
+  });
+
+  it("shows the class happening now and the week number", () => {
+    expect(document.querySelector("#now-card .label").textContent).toBe("Now");
+    expect(document.querySelector("#now-card .what").textContent).toBe("Mobile Software Development");
+    expect(document.querySelector("#cal-name").textContent).toContain("Week 1 of 1");
+  });
+
+  it("lists today's classes for the chosen group, with the free gap", () => {
+    const list = document.querySelector("#today-list").textContent;
+    expect(list).toContain("CQ-227");
+    expect(list).not.toContain("CQ-228");
+    expect(list).toContain("Free · 2h");
+  });
+
+  it("shows the friends view with an empty state", () => {
+    document.querySelector('.tabs button[data-view="friends"]').click();
+    expect(document.querySelector("#view-friends").hidden).toBe(false);
+    expect(document.querySelector("#friends-body").textContent).toContain("Find free time with friends");
+  });
+});
