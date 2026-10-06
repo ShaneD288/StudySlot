@@ -181,8 +181,6 @@ npx wrangler secret put SHARE_KEY
 
 To release, bump `version` in `package.json` and `APP_VERSION` in `public/app.js`, and update the service worker's `VERSION` to match (a test checks all three), then add an entry to `CHANGELOG.md`.
 
-To refresh the CAO course lists (CAO adds and renames courses each year), run `npm run fetch-courses`. To add a college, add its CAO code in `scripts/fetch-courses.js` and in the `CAO` map in `public/app.js`.
-
 See [docs/launch-checklist.md](docs/launch-checklist.md) for the steps before a public launch.
 
 ## Licence

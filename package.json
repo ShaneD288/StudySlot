@@ -10,7 +10,6 @@
     "deploy": "wrangler deploy",
     "icons": "node scripts/make-icons.js",
     "predeploy": "node scripts/check-launch.js",
-    "fetch-courses": "node scripts/fetch-courses.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
