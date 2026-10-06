@@ -2,6 +2,7 @@ import { addDays, dayKey, duration, fromKey, mondayOf } from "./lib/dates.js";
 import { weekLabel as weekLabelFor } from "./lib/weeks.js";
 import { classesInCommon, filterClasses } from "./lib/classes.js";
 import { freeTogether } from "./lib/free-time.js";
+import { project, rubberband, spring, velocityTracker } from "./lib/motion.js";
 import { parseFriendLink } from "./lib/share-links.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -50,6 +51,11 @@ const APP_VERSION = "1.0.0";
 const CONTACT = "hello@studyslot.ie";
 const STALE_MS = 30 * 60 * 1000;
 
+// Saved by older versions and no longer used: course and year, and one shared link for everything.
+try {
+  localStorage.removeItem("studyslot.profile");
+  localStorage.removeItem("studyslot.share");
+} catch {}
 let link = store.get("link");
 let data = store.get("data"); // { name, classes, groupChoices, fetchedAt }
 let groups = store.get("groups", {}); // module title -> chosen group
@@ -65,6 +71,31 @@ let friendDay = null;
 let view = "today";
 let weekOffset = 0;
 let selectedDay = null;
+
+// ---------- Motion ----------
+
+const VIEWS = ["today", "week", "friends"];
+const reduceMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const EASE_OUT = "cubic-bezier(0.25, 1, 0.5, 1)"; // settles smoothly, no overshoot
+
+// New content arrives from the side it's coming from: the next tab, week or day slides in from
+// the right, the previous one from the left. With Reduce Motion it just fades in.
+function slideIn(el, direction) {
+  if (!direction || !el?.animate) return;
+  const reduce = reduceMotion();
+  el.animate(
+    reduce
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [
+          { opacity: 0, transform: `translateX(${direction * 24}px)` },
+          { opacity: 1, transform: "none" },
+        ],
+    { duration: reduce ? 150 : 320, easing: EASE_OUT },
+  );
+}
+
+// iOS Safari only shows :active press states when the page listens for touches.
+document.addEventListener("touchstart", () => {}, { passive: true });
 
 // ---------- Dates ----------
 
@@ -280,8 +311,10 @@ function renderWeek() {
           class: [k === selectedDay && "active", k === todayKey() && "today"].filter(Boolean).join(" "),
           "aria-selected": String(k === selectedDay),
           onclick: () => {
+            const direction = Math.sign(shown.indexOf(k) - shown.indexOf(selectedDay));
             selectedDay = k;
             renderWeek();
+            slideIn($("#week-list"), direction);
           },
         },
         fromKey(k).toLocaleDateString([], { weekday: "short" }),
@@ -302,27 +335,22 @@ function renderWeek() {
   );
 }
 
-$("#week-prev").addEventListener("click", () => {
-  weekOffset--;
+function changeWeek(step) {
+  weekOffset += step;
   selectedDay = null;
   renderWeek();
-});
-$("#week-next").addEventListener("click", () => {
-  weekOffset++;
-  selectedDay = null;
-  renderWeek();
-});
+  slideIn($("#day-strip"), step);
+  slideIn($("#week-list"), step);
+}
+$("#week-prev").addEventListener("click", () => changeWeek(-1));
+$("#week-next").addEventListener("click", () => changeWeek(1));
 
 // ---------- Screens ----------
 
 function render() {
   if (!data) return;
   const thisWeek = weekLabel(mondayOf(todayKey()));
-  const who = profile.course
-    ? [profile.courseCode || profile.course, yearLabel(profile.year)].filter(Boolean).join(" · ")
-    : data.name
-      ? `${data.name}'s timetable`
-      : "My timetable";
+  const who = data.name ? `${data.name}'s timetable` : "My timetable";
   $("#cal-name").textContent = [who, thisWeek].filter(Boolean).join(" · ");
   $("#heading").textContent =
     view === "today"
@@ -330,11 +358,12 @@ function render() {
       : view === "week"
         ? "Week"
         : "Friends";
-  for (const v of ["today", "week", "friends"]) $(`#view-${v}`).hidden = view !== v;
+  for (const v of VIEWS) $(`#view-${v}`).hidden = view !== v;
   document.querySelectorAll(".tabs button").forEach((b) => {
     b.classList.toggle("active", b.dataset.view === view);
     b.setAttribute("aria-selected", String(b.dataset.view === view));
   });
+  placeTabThumb();
   if (view === "today") renderToday();
   else if (view === "week") renderWeek();
   else renderFriends();
@@ -344,316 +373,49 @@ function render() {
 
 document.querySelectorAll(".tabs button").forEach((b) =>
   b.addEventListener("click", () => {
+    const direction = Math.sign(VIEWS.indexOf(b.dataset.view) - VIEWS.indexOf(view));
     view = b.dataset.view;
     render();
+    slideIn($(`#view-${view}`), direction);
   }),
 );
 
-// ---------- First run: college → course → year → link ----------
-
-let profile = store.get("profile", {}); // { college, short, course, year }
-let obMode = "first"; // "first" | "edit" (from Settings) | "link" (change link only)
-let obCurrent = "hello";
-
-const COLLEGES = [
-  ["Trinity College Dublin", "TCD", "Dublin"],
-  ["University College Dublin", "UCD", "Dublin"],
-  ["Dublin City University", "DCU", "Dublin"],
-  [
-    "TU Dublin",
-    "TUD",
-    "Dublin",
-    "TU Dublin timetables come from its online timetable system. Open your personal timetable and look for Subscribe or Add to calendar.",
-  ],
-  ["University of Galway", "UG", "Galway"],
-  ["University College Cork", "UCC", "Cork"],
-  ["University of Limerick", "UL", "Limerick"],
-  ["Maynooth University", "MU", "Maynooth"],
-  ["Atlantic Technological University", "ATU", "Galway, Mayo, Sligo, Donegal"],
-  ["Munster Technological University", "MTU", "Cork, Kerry"],
-  ["South East Technological University", "SETU", "Waterford, Carlow"],
-  ["Technological University of the Shannon", "TUS", "Athlone, Limerick"],
-  ["Dundalk Institute of Technology", "DkIT", "Dundalk"],
-  ["IADT Dún Laoghaire", "IADT", "Dún Laoghaire"],
-  ["RCSI University of Medicine and Health Sciences", "RCSI", "Dublin"],
-  ["National College of Ireland", "NCI", "Dublin"],
-  ["Mary Immaculate College", "MIC", "Limerick"],
-  ["National College of Art and Design", "NCAD", "Dublin"],
-  ["Griffith College", "GC", "Dublin, Cork, Limerick"],
-  ["Dublin Business School", "DBS", "Dublin"],
-];
-const COURSES = [
-  "Computer Science",
-  "Business",
-  "Engineering",
-  "Nursing",
-  "Arts",
-  "Science",
-  "Law",
-  "Medicine",
-  "Psychology",
-  "Accounting & Finance",
-  "Marketing",
-  "Education",
-  "Architecture",
-  "Pharmacy",
-  "Design",
-  "Economics",
-];
-
-// CAO institution codes for colleges whose course lists are in /courses.json.
-const CAO = { TCD: "TR", UCD: "DN", DCU: "DC", TUD: "TU", RCSI: "RC" };
-let courseLists = null;
-async function loadCourseLists() {
-  if (courseLists) return courseLists;
-  try {
-    courseLists = await (await fetch("/courses.json")).json();
-  } catch {
-    courseLists = {};
-  }
-  return courseLists;
+// The selected tab's background slides between tabs, like an iOS segmented control.
+function placeTabThumb() {
+  const tabs = $("#view-tabs");
+  const active = tabs.querySelector("button.active");
+  if (!active?.offsetWidth) return; // not on screen yet
+  tabs.style.setProperty("--thumb-x", `${active.offsetLeft}px`);
+  tabs.style.setProperty("--thumb-w", `${active.offsetWidth}px`);
+  // Only animate once it's been placed, so it doesn't fly in from the left on launch.
+  if (!tabs.classList.contains("placed")) requestAnimationFrame(() => tabs.classList.add("placed"));
 }
-const coursesFor = (short) => courseLists?.[CAO[short]] || null;
+window.addEventListener("resize", placeTabThumb);
+document.fonts?.ready.then(placeTabThumb);
 
-const yearLabel = (y) => (!y ? "" : y === "PG" ? "Postgrad" : `Year ${y}`);
-const OB_PROGRESS = { college: 1, course: 2, year: 3, link: 4 };
+// ---------- First run: add your timetable link ----------
 
-function goStep(name, direction = 1) {
-  obCurrent = name;
-  document.querySelectorAll(".ob-step").forEach((sec) => (sec.hidden = sec.dataset.step !== name));
-  const section = document.querySelector(`.ob-step[data-step="${name}"]`);
-  // Restart the slide-in animation in the right direction.
-  section.classList.remove("from-left");
-  section.style.animation = "none";
-  void section.offsetWidth;
-  section.style.animation = "";
-  if (direction < 0) section.classList.add("from-left");
-
-  const n = OB_PROGRESS[name] || 0;
-  $("#ob-progress").classList.toggle("hide", !n || obMode === "link");
-  [...$("#ob-progress").children].forEach((bar, i) => bar.classList.toggle("on", i < n));
-  $("#ob-back").hidden =
-    name === "hello" ||
-    name === "done" ||
-    (obMode === "link" && !data) ||
-    (name === "college" && obMode === "edit" && !data);
-
-  if (name === "college") renderColleges();
-  if (name === "course") prepareCourse();
-  if (name === "year") prepareYear();
-  if (name === "link") prepareLink();
-}
-
-$("#ob-back").addEventListener("click", () => {
-  const order = ["hello", "college", "course", "year", "link"];
-  const i = order.indexOf(obCurrent);
-  const leaveToApp = (obMode === "link" && obCurrent === "link") || (obMode === "edit" && obCurrent === "college");
-  if (leaveToApp && data) return showApp();
-  goStep(order[Math.max(0, i - 1)], -1);
-});
-document.querySelectorAll(".ob-next[data-go]").forEach((b) => b.addEventListener("click", () => goStep(b.dataset.go)));
-
-// Step 1: college
-function renderColleges() {
-  const q = $("#college-search").value.trim().toLowerCase();
-  const matches = COLLEGES.filter(
-    ([name, short, place]) => !q || `${name} ${short} ${place}`.toLowerCase().includes(q),
-  );
-  const pick = (college, short, help) => {
-    if (profile.college !== college) profile = { ...profile, course: "", courseCode: "" };
-    profile = { ...profile, college, short, help: help || "" };
-    store.set("profile", profile);
-    renderColleges();
-    setTimeout(() => goStep("course"), 260);
-  };
-  $("#college-list").replaceChildren(
-    ...matches.map(([name, short, place, help], i) =>
-      h(
-        "button",
-        {
-          class: "option" + (profile.college === name ? " selected" : ""),
-          role: "option",
-          "aria-selected": String(profile.college === name),
-          style: { "--i": i, "--hue": hue(name) },
-          onclick: () => pick(name, short, help),
-        },
-        h("span", { class: "mono" }, short),
-        h("span", { class: "label" }, h("b", {}, name), h("span", {}, place)),
-        h("span", { class: "check" }),
-      ),
-    ),
-    h(
-      "button",
-      {
-        class: "option muted",
-        style: { "--i": matches.length },
-        onclick: () => {
-          $("#college-other").hidden = false;
-          $("#college-other-input").focus();
-        },
-      },
-      h("span", { class: "mono" }, "+"),
-      h("span", { class: "label" }, h("b", {}, "My college isn't listed")),
-      h("span", {}),
-    ),
-  );
-}
-$("#college-search").addEventListener("input", renderColleges);
-$("#college-other-next").addEventListener("click", () => {
-  const name = $("#college-other-input").value.trim();
-  if (!name) return $("#college-other-input").focus();
-  profile = {
-    ...profile,
-    college: name,
-    short: name
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 4)
-      .toUpperCase(),
-    help: "",
-  };
-  store.set("profile", profile);
-  goStep("course");
-});
-
-// Step 2: course
-async function prepareCourse() {
-  await loadCourseLists();
-  const list = coursesFor(profile.short);
-  $("#course-sub").textContent = list
-    ? `At ${profile.college}. Search by name or CAO code.`
-    : `At ${profile.college}. Use your course name or code, whatever you'll recognise.`;
-  $("#course-input").placeholder = list ? "Search courses, e.g. Computer Science" : "e.g. Computer Science";
-  $("#course-input").value = profile.courseCode ? "" : profile.course || "";
-  renderCourseChips();
-  setTimeout(() => $("#course-input").focus(), 350);
-}
-function renderCourseList(list) {
-  const q = $("#course-input").value.trim().toLowerCase();
-  const matches = list.filter(([code, name]) => !q || `${code} ${name}`.toLowerCase().includes(q)).slice(0, 60);
-  const pick = (code, name) => {
-    profile = { ...profile, course: name, courseCode: code };
-    store.set("profile", profile);
-    renderCourseList(list);
-    setTimeout(() => goStep("year"), 260);
-  };
-  $("#course-list").replaceChildren(
-    ...matches.map(([code, name], i) =>
-      h(
-        "button",
-        {
-          class: "option course-option" + (profile.courseCode === code ? " selected" : ""),
-          role: "option",
-          "aria-selected": String(profile.courseCode === code),
-          style: { "--i": Math.min(i, 12) },
-          onclick: () => pick(code, name),
-        },
-        h("span", { class: "code" }, code),
-        h("span", { class: "label" }, h("b", {}, name)),
-        h("span", { class: "check" }),
-      ),
-    ),
-    ...(matches.length ? [] : [h("p", { class: "hint" }, "No matching courses. Type your course and tap Continue.")]),
-  );
-  // Typing something that isn't in the list can still be used as the course.
-  const typed = $("#course-input").value.trim();
-  $("#course-next").hidden = !typed || matches.length > 0;
-  $("#course-next").disabled = !typed;
-  $("#course-next").textContent = typed ? `Use "${typed}"` : "Continue";
-}
-function renderCourseChips() {
-  const list = coursesFor(profile.short);
-  $("#course-list").hidden = !list;
-  $("#course-suggest").hidden = !!list;
-  if (list) return renderCourseList(list);
-  $("#course-next").hidden = false;
-  $("#course-next").textContent = "Continue";
-  const q = $("#course-input").value.trim().toLowerCase();
-  const suggestions = COURSES.filter((c) => !q || c.toLowerCase().includes(q)).slice(0, 8);
-  $("#course-suggest").replaceChildren(
-    ...suggestions.map((c, i) =>
-      h(
-        "button",
-        {
-          type: "button",
-          style: { "--i": i },
-          onclick: () => {
-            $("#course-input").value = c;
-            renderCourseChips();
-          },
-        },
-        c,
-      ),
-    ),
-  );
-  $("#course-next").disabled = !$("#course-input").value.trim();
-}
-$("#course-input").addEventListener("input", renderCourseChips);
-$("#course-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && $("#course-input").value.trim()) $("#course-next").click();
-});
-$("#course-next").addEventListener("click", () => {
-  profile = { ...profile, course: $("#course-input").value.trim(), courseCode: "" };
-  store.set("profile", profile);
-  goStep("year");
-});
-
-// Step 3: year
-function prepareYear() {
-  $("#year-sub").textContent = [profile.courseCode, profile.course, profile.short || profile.college]
-    .filter(Boolean)
-    .join(" · ");
-  document
-    .querySelectorAll(".year-grid button")
-    .forEach((b) => b.setAttribute("aria-checked", String(b.dataset.year === String(profile.year))));
-}
-document.querySelectorAll(".year-grid button").forEach((b) =>
-  b.addEventListener("click", () => {
-    profile = { ...profile, year: b.dataset.year };
-    store.set("profile", profile);
-    prepareYear();
-    setTimeout(() => (obMode === "edit" && data ? (showApp(), fillSettings()) : goStep("link")), 280);
-  }),
-);
-
-// Step 4: link, with help that names their college
-function prepareLink() {
-  $("#link-input").value = link || "";
-  const name = profile.short && profile.short.length <= 5 ? profile.short : profile.college || "your college";
-  $("#link-sub").textContent =
-    `Paste your timetable's calendar link from ${name}. It's how Studyslot reads your classes.`;
-  $("#help-college-title").textContent = `On ${name}'s timetable site`;
-  $("#help-college").textContent =
-    profile.help ||
-    "Open your personal timetable online and look for Subscribe, Export, iCal or Add to calendar. Copy the link it gives you; it usually ends in .ics or starts with webcal://.";
-}
-
-function showWelcome(error, mode = profile.course ? "link" : "first") {
-  obMode = mode;
+function showWelcome(error) {
   $("#app").hidden = true;
   $("#welcome").hidden = false;
-  goStep(mode === "first" ? "hello" : mode === "edit" ? "college" : "link");
+  $("#link-input").value = link || "";
+  // Changing the link from Settings: there's a timetable to go back to.
+  $("#ob-back").hidden = !data;
   $("#link-error").hidden = !error;
   $("#link-error").textContent = error || "";
+  // Typing is the only thing to do here, but don't pop the keyboard over a returning visitor's error.
+  if (!error && window.matchMedia?.("(hover: hover)").matches) $("#link-input").focus();
 }
-
-function finishOnboarding() {
-  const thisWeek = classesOn(todayKey()).length;
-  $("#done-sub").textContent =
-    `${profile.course ? profile.course + " · " : ""}${yearLabel(profile.year)}${thisWeek ? ` · ${thisWeek} class${thisWeek === 1 ? "" : "es"} today` : ""}`;
-  goStep("done");
-  setTimeout(() => {
-    showApp();
-    maybeAskGroups();
-  }, 1500);
-}
+$("#ob-back").addEventListener("click", () => data && showApp());
 
 function showApp() {
   $("#welcome").hidden = true;
   $("#app").hidden = false;
   render();
 }
+
+// The header is a translucent layer; a hairline appears under it only once content scrolls beneath.
+window.addEventListener("scroll", () => $(".top").classList.toggle("scrolled", window.scrollY > 2), { passive: true });
 
 function banner(message) {
   const el = $("#banner");
@@ -716,7 +478,8 @@ $("#link-form").addEventListener("submit", async (e) => {
     store.set("data", data);
     store.set("privateLinksNotice", true);
     view = "today";
-    finishOnboarding();
+    showApp();
+    maybeAskGroups();
   } catch (err) {
     $("#link-error").textContent = err.message;
     $("#link-error").hidden = false;
@@ -774,20 +537,23 @@ const myName = () => store.get("name") || data?.name || "";
 
 // Everything needed to rebuild my cleaned timetable (link, groups, hidden modules, time zone,
 // name), encrypted by the server into a token that can't be read or changed (src/share.js).
-// The token is saved and reused until the settings change. Returns { token, id }.
-async function myShare() {
+// "friend" tokens are for friend links and stop working when I reset my link; "calendar" tokens
+// are only for my own calendar feed, so a reset doesn't break it. A token is reused for a day
+// unless the settings change, so a reset on another device reaches this one. Returns { token, id }.
+async function myShare(purpose = "friend", { reset = false } = {}) {
   const settings = JSON.stringify({ l: link, g: groups, h: [...hidden], z: TZ, n: myName() });
-  const saved = store.get("share");
-  if (saved?.settings === settings) return saved;
+  const key = `share.${purpose}`;
+  const saved = store.get(key);
+  if (!reset && saved?.settings === settings && Date.now() - saved.madeAt < 86400000) return saved;
   const res = await fetch("/api/share", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: settings,
+    body: JSON.stringify({ ...JSON.parse(settings), ...(purpose === "calendar" ? { p: "c" } : {}), reset }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body.token) throw new Error(body.error || "Couldn't create your link. Check your connection.");
-  const share = { settings, token: body.token, id: body.id };
-  store.set("share", share);
+  const share = { settings, token: body.token, id: body.id, madeAt: Date.now() };
+  store.set(key, share);
   return share;
 }
 
@@ -800,7 +566,7 @@ async function prepareFeeds() {
   $("#feed-status").hidden = false;
   $("#feed-status").textContent = "Preparing your calendar link…";
   try {
-    const https = `${location.origin}/feed/${(await myShare()).token}.ics`;
+    const https = `${location.origin}/feed/${(await myShare("calendar")).token}.ics`;
     if (run !== feedRun) return; // settings changed while waiting
     feeds = { https, webcal: https.replace(/^https?:/, "webcal:") };
     $("#feed-apple").href = feeds.webcal;
@@ -1080,7 +846,12 @@ async function openShare() {
   box.textContent = "Creating your private link…";
   button.disabled = true;
   $("#my-name").value = myName();
-  if ($("#share-sheet").hidden) openSheet($("#share-sheet")); // also called to redraw after a name change
+  // Also called to redraw after a name change or a reset, with the sheet already open.
+  if (!isOpen($("#share-sheet"))) {
+    $("#share-back").hidden = true;
+    resetReset();
+    openSheet($("#share-sheet"));
+  }
   let url;
   try {
     url = `${location.origin}/?friend=${(await myShare()).token}`;
@@ -1116,6 +887,55 @@ $("#my-name").addEventListener("change", () => {
   openShare(); // redraw the QR with the new name
 });
 
+// After adding a friend, offer to share back so they can see me too.
+function shareBack(name) {
+  if (!link) return; // nothing to share yet
+  openShare();
+  $("#share-back").textContent = `Send ${name} your link too, so they can see when you're both free.`;
+  $("#share-back").hidden = false;
+}
+
+// Reset my link: every link and QR code I've shared stops working, and a new one replaces it.
+// Asks for a second tap first, like removing the timetable.
+let resetArmed = false;
+let resetTimer = null;
+function resetReset() {
+  resetArmed = false;
+  clearTimeout(resetTimer);
+  $("#share-reset").textContent = "Reset my link";
+  $("#share-reset").disabled = false;
+  $("#share-reset-status").hidden = true;
+}
+$("#share-reset").addEventListener("click", async () => {
+  const button = $("#share-reset");
+  const status = $("#share-reset-status");
+  if (!resetArmed) {
+    resetArmed = true;
+    button.textContent = "Tap again to reset";
+    resetTimer = setTimeout(resetReset, 4000);
+    return;
+  }
+  clearTimeout(resetTimer);
+  resetArmed = false;
+  button.disabled = true;
+  button.textContent = "Resetting…";
+  try {
+    await myShare("friend", { reset: true });
+  } catch (err) {
+    button.disabled = false;
+    button.textContent = "Reset my link";
+    status.textContent = err.message;
+    status.hidden = false;
+    return;
+  }
+  button.textContent = "Reset my link";
+  button.disabled = false;
+  status.textContent =
+    "Done. Your old link and QR code stop working within a minute. Send this new one to friends you still want to share with.";
+  status.hidden = false;
+  openShare(); // show the new QR code
+});
+
 function openAddFriend() {
   $("#friend-input").value = "";
   $("#friend-error").hidden = true;
@@ -1134,8 +954,9 @@ $("#friend-form").addEventListener("submit", async (e) => {
     return showError("That's an old Studyslot link that no longer works. Ask your friend to share it again.");
   if (parsed.legacy?.l === link) return showError("That's your own timetable.");
   $("#friend-submit").disabled = true;
+  let added;
   try {
-    await addFriend(parsed);
+    added = await addFriend(parsed);
   } catch (err) {
     return showError(err.message);
   } finally {
@@ -1144,6 +965,7 @@ $("#friend-form").addEventListener("submit", async (e) => {
   closeSheets();
   view = "friends";
   render();
+  shareBack(added.name);
 });
 
 // Opened someone's friend link (?friend=…).
@@ -1172,8 +994,9 @@ function checkIncomingFriend() {
       .catch(() => {});
   }
   $("#incoming-add").onclick = async () => {
+    let added;
     try {
-      await addFriend(parsed);
+      added = await addFriend(parsed);
     } catch (err) {
       $("#incoming-text").textContent = err.message;
       return;
@@ -1182,6 +1005,7 @@ function checkIncomingFriend() {
     if (link) {
       view = "friends";
       render();
+      shareBack(added.name);
     }
   };
   $("#incoming-copy").onclick = () =>
@@ -1193,26 +1017,168 @@ function checkIncomingFriend() {
 
 // Sheets are modal dialogs: focus moves into them, Tab stays inside, and closing returns
 // focus to whatever opened them.
+//
+// They rise from the bottom edge and leave the same way, on a spring: drag one down by its top
+// bar, flick it away, or catch it while it's still moving. A sheet that's on its way out has the
+// class "closing" and no longer counts as open.
 let sheetOpener = null;
-const openSheetEl = () => document.querySelector(".sheet:not([hidden])");
+const openSheetEl = () => document.querySelector(".sheet:not([hidden]):not(.closing)");
+const isOpen = (sheet) => !sheet.hidden && !sheet.classList.contains("closing");
 const focusables = (el) =>
   [...el.querySelectorAll("button, [href], input, select, textarea, summary")].filter(
     (x) => !x.disabled && !x.closest("[hidden]"),
   );
 
+const sheetMotion = new Map(); // sheet -> { y, anim }, where y = 0 is fully open
+const motionOf = (sheet) => sheetMotion.get(sheet) || sheetMotion.set(sheet, { y: 0, anim: null }).get(sheet);
+const closedY = (sheet) => sheet.offsetHeight + 24; // just past the bottom edge, shadow included
+
+// The scrim darkens as much as the most-open sheet is open, so it follows a drag too.
+function updateScrim() {
+  let shown = 0;
+  for (const sheet of document.querySelectorAll(".sheet:not([hidden])")) {
+    const fadingOut = reduceMotion() && sheet.classList.contains("closing");
+    const height = closedY(sheet);
+    if (!fadingOut) shown = Math.max(shown, height ? 1 - motionOf(sheet).y / height : 1);
+  }
+  $("#scrim").style.opacity = Math.min(1, Math.max(0, shown));
+  $("#scrim").classList.toggle("passive", !openSheetEl());
+}
+
+function setSheetY(sheet, y) {
+  motionOf(sheet).y = y;
+  sheet.style.transform = y ? `translateY(${y}px)` : "";
+  updateScrim();
+}
+
+/** Moves a sheet to `to` from wherever it is now, keeping its current speed. */
+function moveSheet(sheet, to, { velocity = 0, response = 0.35, damping = 1 } = {}, onDone) {
+  const m = motionOf(sheet);
+  m.anim?.stop();
+  if (reduceMotion() || !sheet.animate) {
+    // A cross-fade instead of a slide.
+    const closing = to > 0;
+    if (!closing) setSheetY(sheet, 0);
+    updateScrim();
+    const fade = sheet.animate?.([{ opacity: closing ? 1 : 0 }, { opacity: closing ? 0 : 1 }], { duration: 200 });
+    const finish = () => {
+      m.anim = null;
+      if (closing) setSheetY(sheet, to);
+      onDone?.();
+    };
+    if (fade) {
+      fade.onfinish = finish;
+      m.anim = { stop: () => (fade.cancel(), { value: m.y, velocity: 0 }) };
+    } else finish();
+    return;
+  }
+  m.anim = spring({
+    from: m.y,
+    to,
+    velocity,
+    response,
+    damping,
+    onUpdate: (y) => setSheetY(sheet, y),
+    onDone: () => {
+      m.anim = null;
+      onDone?.();
+    },
+  });
+}
+
 function openSheet(sheet) {
   if (!openSheetEl()) sheetOpener = document.activeElement;
   $("#scrim").hidden = false;
+  const appearing = sheet.hidden;
   sheet.hidden = false;
-  focusables(sheet)[0]?.focus();
+  sheet.classList.remove("closing");
+  sheet.inert = false;
+  if (appearing) setSheetY(sheet, closedY(sheet));
+  moveSheet(sheet, 0);
+  focusables(sheet)[0]?.focus({ preventScroll: true });
 }
-function closeSheets() {
+
+function closeSheet(sheet, velocity = 0) {
+  sheet.classList.add("closing");
+  sheet.inert = true;
+  moveSheet(sheet, closedY(sheet), { velocity, response: 0.3 }, () => {
+    sheet.hidden = true;
+    sheet.classList.remove("closing");
+    sheet.inert = false;
+    if (!document.querySelector(".sheet:not([hidden])")) $("#scrim").hidden = true;
+  });
+}
+
+function closeSheets({ velocity = 0 } = {}) {
   const wasOpen = openSheetEl();
-  $("#scrim").hidden = true;
-  document.querySelectorAll(".sheet").forEach((s) => (s.hidden = true));
+  document.querySelectorAll(".sheet").forEach((sheet) => isOpen(sheet) && closeSheet(sheet, velocity));
   if (wasOpen && sheetOpener?.isConnected) sheetOpener.focus();
   sheetOpener = null;
 }
+
+// Drag a sheet by its top bar. It tracks the finger 1:1 from where it was grabbed, resists being
+// pulled up, and on release goes wherever the flick was heading.
+function makeDraggable(sheet) {
+  sheet.prepend(h("div", { class: "sheet-grab", "aria-hidden": "true" }));
+  let drag = null;
+  let dragged = false;
+
+  sheet.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || !isOpen(sheet) || !e.target.closest(".sheet-grab, .sheet-bar")) return;
+    const m = motionOf(sheet);
+    const caught = !!m.anim; // grabbed while still moving: hold it where it is
+    if (caught) {
+      m.anim.stop();
+      m.anim = null;
+    }
+    drag = { id: e.pointerId, startY: e.clientY, from: m.y, caught, active: false, tracker: velocityTracker() };
+    drag.tracker.add(e.clientY, e.timeStamp);
+  });
+
+  sheet.addEventListener("pointermove", (e) => {
+    if (drag?.id !== e.pointerId) return;
+    drag.tracker.add(e.clientY, e.timeStamp);
+    const dy = e.clientY - drag.startY;
+    if (!drag.active) {
+      if (Math.abs(dy) < 8 && !drag.caught) return; // a tap on Done shouldn't nudge the sheet
+      drag.active = true;
+      sheet.setPointerCapture(e.pointerId);
+    }
+    const y = drag.from + dy;
+    setSheetY(sheet, y < 0 ? -rubberband(-y, sheet.offsetHeight) : y);
+  });
+
+  const release = (e) => {
+    if (drag?.id !== e.pointerId) return;
+    const { active, caught, tracker } = drag;
+    drag = null;
+    if (!active && !caught) return;
+    dragged = active;
+    setTimeout(() => (dragged = false)); // the click, if any, comes before this
+    tracker.add(e.clientY, e.timeStamp);
+    const velocity = e.type === "pointercancel" ? 0 : tracker.velocity();
+    const y = motionOf(sheet).y;
+    // Decide from where the gesture was heading, not just where it let go.
+    if (y + project(velocity) > sheet.offsetHeight * 0.4) closeSheets({ velocity });
+    else moveSheet(sheet, 0, { velocity, response: 0.3, damping: velocity ? 0.85 : 1 });
+  };
+  sheet.addEventListener("pointerup", release);
+  sheet.addEventListener("pointercancel", release);
+
+  // A drag that started on Done or Cancel isn't a tap on it.
+  sheet.addEventListener(
+    "click",
+    (e) => {
+      if (!dragged) return;
+      dragged = false;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+}
+document.querySelectorAll(".sheet").forEach(makeDraggable);
+
 $("#scrim").addEventListener("click", closeSheets);
 document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeSheets));
 document.addEventListener("keydown", (e) => {
@@ -1264,9 +1230,7 @@ $("#feedback").addEventListener("click", () => {
     "",
     "",
     "---",
-    `College: ${profile.college || "-"}`,
-    `Course: ${profile.courseCode || profile.course || "-"}`,
-    `Year: ${yearLabel(profile.year) || "-"}`,
+    "College: TU Dublin",
     `App version: ${APP_VERSION}`,
     `Device: ${navigator.userAgent}`,
     "(Your timetable link is not included.)",
@@ -1276,11 +1240,7 @@ $("#feedback").addEventListener("click", () => {
 
 $("#change-link").addEventListener("click", () => {
   closeSheets();
-  showWelcome(null, "link");
-});
-$("#edit-profile").addEventListener("click", () => {
-  closeSheets();
-  showWelcome(null, "edit");
+  showWelcome();
 });
 let forgetArmed = false;
 $("#forget").addEventListener("click", () => {
@@ -1298,9 +1258,8 @@ $("#forget").addEventListener("click", () => {
   data = null;
   groups = {};
   hidden = new Set();
-  profile = {};
   closeSheets();
-  showWelcome(null, "first");
+  showWelcome();
 });
 
 // ---------- Start ----------

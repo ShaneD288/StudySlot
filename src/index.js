@@ -2,13 +2,15 @@
 // (or an encrypted token holding it), the timetable is fetched and cleaned, and the result is returned.
 //   GET  /api/timetable?link=…&tz=…   cleaned classes for the app (plus week counts)
 //   POST /api/share                   { l, g, h, z, n } settings -> { token, id }: an encrypted token
-//                                     for calendar-feed and friend links (see share.js)
+//                                     for friend links (see share.js). With p: "c", a calendar-only
+//                                     token for the feed; with reset: true, a new friend link that
+//                                     replaces all earlier ones
 //   GET  /api/friend?token=…&tz=…     a friend's name and classes from their token, without their link
 //   GET  /feed/<token>.ics            a cleaned calendar to subscribe to in Apple/Google Calendar
 import { extractClasses, groupChoicesFrom } from "./timetable.js";
 import { isValidTimeZone } from "./time.js";
 import { parseEvents } from "./ical.js";
-import { LEGACY_TOKENS_UNTIL, linkId, openLegacyToken, openToken, sealToken } from "./share.js";
+import { LEGACY_TOKENS_UNTIL, linkId, openLegacyToken, openToken, sealToken, toBase64url } from "./share.js";
 
 const DAY_MS = 86400000;
 const MAX_BYTES = 6 * 1024 * 1024;
@@ -175,8 +177,30 @@ async function createShare(request, env) {
     return json({ error: "Invalid sharing settings." }, 400);
   }
   const settings = cleanSettings(raw);
-  return json({ token: await sealToken(settings, env.SHARE_KEY), id: await linkId(settings.l, env.SHARE_KEY) });
+  const id = await linkId(settings.l, env.SHARE_KEY);
+  if (raw.p === "c") {
+    settings.p = "c"; // calendar-only: survives resets, and can't be used as a friend link
+  } else if (raw.reset === true) {
+    if (!env.LINK_RESETS) return json({ error: "Resetting links isn't available right now. Try again later." }, 503);
+    settings.r = toBase64url(crypto.getRandomValues(new Uint8Array(9)));
+    await env.LINK_RESETS.put(id, settings.r);
+  } else {
+    const generation = await generationOf(id, env);
+    if (generation) settings.r = generation;
+  }
+  return json({ token: await sealToken(settings, env.SHARE_KEY), id });
 }
+
+// Resetting a link. A student who resets gets a new random "generation", kept in LINK_RESETS
+// under their link's id (an HMAC that doesn't reveal the link). Friend links carry the generation
+// they were made with (r), and ones from before the latest reset are refused. That's all that's
+// stored, and only for students who have reset; everyone else has no entry.
+const generationOf = async (id, env) => (env.LINK_RESETS ? await env.LINK_RESETS.get(id) : null);
+const isCurrent = async (settings, env) => {
+  const generation = await generationOf(await linkId(normalizeLink(settings.l), env.SHARE_KEY), env);
+  return !generation || settings.r === generation;
+};
+const RESET_MESSAGE = "This link was reset by the person who shared it. Ask them for their new link.";
 
 /**
  * Settings from a feed or friend token: { settings, legacy } or null. Old unencrypted tokens
@@ -202,6 +226,9 @@ async function friendTimetable(url, env) {
   const opened = await readToken(url.searchParams.get("token") || "", env, false);
   if (!opened) return json({ error: "That friend link isn't valid. Ask your friend to share it again." }, 400);
   const { settings } = opened;
+  if (settings.p === "c")
+    return json({ error: "That friend link isn't valid. Ask your friend to share it again." }, 400);
+  if (!(await isCurrent(settings, env))) return json({ error: RESET_MESSAGE }, 410);
   const requested = url.searchParams.get("tz");
   const tz = isValidTimeZone(settings.z) ? settings.z : requested && isValidTimeZone(requested) ? requested : "UTC";
   const link = normalizeLink(settings.l);
@@ -247,6 +274,12 @@ async function calendarFeed(token, env) {
       "This Studyslot calendar link has expired. Open Studyslot, go to Settings, and add your calendar again.",
       { status: 410 },
     );
+  }
+  // A friend link opened as a calendar after a reset. Calendar-only links aren't affected.
+  if (!legacy && settings.p !== "c" && !(await isCurrent(settings, env))) {
+    return new Response(`${RESET_MESSAGE} If it's your own calendar, open Studyslot and add it again.`, {
+      status: 410,
+    });
   }
   const tz = settings.z && isValidTimeZone(settings.z) ? settings.z : "UTC";
   let ics;

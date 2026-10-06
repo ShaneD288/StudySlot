@@ -16,7 +16,7 @@ Your college timetable, cleaned up: paste your calendar link, see what's on, whe
 - Problem: college timetables are cluttered with module codes, group labels, room capacities and every lab group's slot
 - Students paste the calendar link their college already gives them (`.ics` / `webcal://`)
 - Studyslot shows a clean today/week view, only their own lab groups, and free time shared with friends
-- No accounts, nothing stored on the server, works offline once loaded
+- No accounts, timetables never stored on the server, works offline once loaded
 
 ## Screenshots
 
@@ -39,7 +39,7 @@ _Screenshots coming soon._
 - **Add to your calendar:** a cleaned calendar feed for Apple or Google Calendar, with the chosen groups, hidden modules and a 10-minute alert before each class.
 - **Friends:** share a private link or QR code, then see **free time together** (9:00–18:00) and **classes you share**.
 - **Installable and offline:** add to the Home Screen; the last timetable stays available without a connection.
-- **First-run setup:** pick college, course and year. Dublin universities get a searchable list of every undergraduate CAO course (`public/courses.json`).
+- **One-screen setup:** paste your timetable link and go. No account, no questions.
 
 ## Architecture
 
@@ -133,13 +133,17 @@ flowchart LR
 - Chose A: keeps "nothing stored on the server"
 - AES-256-GCM: can't be read, and any change is detected (authentication tag)
 - Friends receive classes, never the timetable link; an HMAC id spots duplicates
-- Trade-off: single links can't be revoked; rotating `SHARE_KEY` revokes all of them
+- Revoking ("Reset my link"): KV (`LINK_RESETS`) keeps, only for students who reset, their HMAC id → a random
+  generation. Friend tokens carry their generation and older ones are refused. No timetable data is stored
+- Calendar-feed tokens are marked calendar-only (`p: "c"`): a reset doesn't break the student's own calendar, and a
+  calendar token can't be used as a friend link
 - Old base64 links accepted until 1 February 2027, with a "please share again" message
 
 ## Privacy
 
 - **No accounts, no cookies, no analytics.** Local storage is used only for features the student asks for (exempt from consent under S.I. 336/2011).
-- **Nothing stored on the server.** Timetables are fetched, cleaned and returned in memory.
+- **Timetables never stored on the server.** They're fetched, cleaned and returned in memory. The only server-side
+  state is the reset record (an HMAC id and a random value) for students who reset their friend link.
 - **Private sharing links:** encrypted with AES-256-GCM (key derived from the `SHARE_KEY` secret). Friends get a friend's classes, never their timetable link. See `src/share.js`.
 - **No third-party requests:** the font (`public/fonts`, SIL OFL) and QR library (`public/vendor`, MIT) are self-hosted.
 - **Privacy Policy** (`/privacy`) and **Terms of Use** (`/terms`) are written for Irish and EU law (GDPR, ePrivacy). They are drafts, not legal advice.

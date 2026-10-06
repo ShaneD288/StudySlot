@@ -26,6 +26,7 @@
   --display: "Bricolage Grotesque", ui-rounded, -apple-system, "Segoe UI", system-ui, sans-serif;
   --body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --radius: 16px;
+  --ease: cubic-bezier(0.25, 1, 0.5, 1); /* settles like a critically damped spring: no overshoot */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -100,6 +101,34 @@ h3 {
 .btn:disabled {
   opacity: 0.6;
 }
+
+/* Press feedback: things give way the moment they're touched, not when the finger lifts, and
+   spring back on release. */
+:where(.btn, .row-btn, .icon-btn, .ob-back, .text-btn, .tabs button, .day-strip button, .pills button, .friend-chip) {
+  transition:
+    transform 0.35s var(--ease),
+    opacity 0.2s,
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+:where(.icon-btn, .ob-back, .tabs button, .day-strip button, .pills button, .friend-chip):active {
+  transform: scale(0.94);
+  transition-duration: 0s;
+}
+:where(.btn, .row-btn):active:not(:disabled) {
+  transform: scale(0.98);
+  transition-duration: 0s;
+}
+.text-btn:active {
+  opacity: 0.5;
+  transition-duration: 0s;
+}
+@media (hover: hover) {
+  :is(.row-btn, .icon-btn, .ob-back, .friend-chip:not(.on)):hover {
+    background-color: color-mix(in srgb, var(--accent) 6%, var(--card));
+  }
+}
 .text-btn {
   color: var(--accent);
   font-weight: 600;
@@ -162,74 +191,18 @@ h3 {
   border: 1px solid var(--line);
   flex: none;
 }
-.ob-progress {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-.ob-progress i {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--line);
-  position: relative;
-  overflow: hidden;
-}
-.ob-progress i::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.45s cubic-bezier(0.3, 0.8, 0.3, 1);
-}
-.ob-progress i.on::after {
-  transform: scaleX(1);
-}
-.ob-progress.hide {
-  visibility: hidden;
-}
-
 .ob-step {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  animation: step-in 0.42s cubic-bezier(0.2, 0.8, 0.25, 1) both;
 }
-.ob-step.from-left {
-  animation-name: step-in-back;
-}
-@keyframes step-in {
-  from {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-}
-@keyframes step-in-back {
-  from {
-    opacity: 0;
-    transform: translateX(-28px);
-  }
-}
-.ob-title {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.1;
-}
-.ob-sub {
-  margin: -6px 0 0;
-  color: var(--muted);
-  font-size: 16px;
-}
-.ob-step > .btn {
-  margin-top: auto;
+/* After the logo and title, the form rises in. */
+.ob-step > :not(.ob-hello) {
+  animation: rise-in 0.5s var(--ease) 0.72s both;
 }
 
-/* Hello: the logo builds itself cell by cell, and the "now" cell lights up last. */
+/* The logo builds itself cell by cell, and the "now" cell lights up last. */
 .ob-hello {
   flex: 1;
   display: flex;
@@ -338,122 +311,10 @@ h3 {
   color: var(--ink);
   max-width: 30em;
 }
-[data-step="hello"] .privacy {
+.onboard .privacy {
   text-align: center;
 }
 
-/* College list */
-.search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 14px;
-  border-radius: 14px;
-  background: var(--card);
-  border: 1.5px solid var(--line);
-  color: var(--muted);
-}
-.search:focus-within {
-  border-color: var(--accent);
-}
-.search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: none;
-  padding: 13px 0;
-  font-size: 16px;
-  color: var(--ink);
-}
-.option-list {
-  display: grid;
-  gap: 8px;
-  padding-bottom: 8px;
-}
-.option {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: var(--card);
-  border: 1.5px solid var(--line);
-  animation: rise-in 0.35s ease-out both;
-  animation-delay: calc(var(--i, 0) * 28ms);
-  transition:
-    border-color 0.15s,
-    transform 0.15s;
-}
-.option:active {
-  transform: scale(0.98);
-}
-.option .mono {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 13px;
-  color: #fff;
-  background: hsl(var(--hue) 55% 32%); /* white text needs 4.5:1 on every hue */
-}
-.option .label {
-  flex: 1;
-  min-width: 0;
-}
-.option .label b {
-  display: block;
-  font-weight: 700;
-}
-.option .label span {
-  font-size: 13px;
-  color: var(--muted);
-}
-.option .check {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  flex: none;
-  border: 1.5px solid var(--line);
-  display: grid;
-  place-items: center;
-}
-.option.selected {
-  border-color: var(--accent);
-}
-.option.selected .check {
-  background: var(--accent);
-  border-color: var(--accent);
-  animation: tick-pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
-}
-.option.selected .check::after {
-  content: "";
-  width: 10px;
-  height: 6px;
-  border: solid #fff;
-  border-width: 0 0 2.5px 2.5px;
-  transform: translateY(-1px) rotate(-45deg);
-}
-@keyframes tick-pop {
-  from {
-    transform: scale(0.4);
-  }
-}
-.option.muted .mono {
-  background: var(--line);
-  color: var(--muted);
-}
-.other-field {
-  display: grid;
-  gap: 10px;
-}
-.other-field input,
 .big-input {
   width: 100%;
   min-width: 0;
@@ -464,137 +325,10 @@ h3 {
   font-size: 18px;
   font-weight: 600;
 }
-.other-field input:focus,
 .big-input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-/* Course list */
-.course-option .code {
-  flex: none;
-  min-width: 58px;
-  padding: 5px 8px;
-  border-radius: 9px;
-  text-align: center;
-  font: 800 13px/1 var(--display);
-  letter-spacing: 0.02em;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.course-option .label b {
-  font-weight: 600;
-}
-
-/* Course suggestions */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.chips button {
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  font-weight: 600;
-  font-size: 14px;
-  animation: rise-in 0.3s ease-out both;
-  animation-delay: calc(var(--i, 0) * 35ms);
-}
-
-/* Year */
-.year-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-.year-grid button {
-  aspect-ratio: 1;
-  border-radius: 20px;
-  background: var(--card);
-  border: 1.5px solid var(--line);
-  display: grid;
-  place-content: center;
-  gap: 2px;
-  font-family: var(--display);
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  animation: rise-in 0.35s ease-out both;
-  transition:
-    transform 0.15s,
-    background 0.2s,
-    color 0.2s;
-}
-.year-grid button span {
-  font-family: var(--body);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--muted);
-}
-.year-grid button:nth-child(2) {
-  animation-delay: 0.04s;
-}
-.year-grid button:nth-child(3) {
-  animation-delay: 0.08s;
-}
-.year-grid button:nth-child(4) {
-  animation-delay: 0.12s;
-}
-.year-grid button:nth-child(5) {
-  animation-delay: 0.16s;
-}
-.year-grid button:nth-child(6) {
-  animation-delay: 0.2s;
-}
-.year-grid button:active {
-  transform: scale(0.95);
-}
-.year-grid button[aria-checked="true"] {
-  background: var(--ink);
-  color: var(--paper);
-  border-color: var(--ink);
-}
-.year-grid button[aria-checked="true"] span {
-  color: inherit;
-  opacity: 0.75;
-}
-
-/* Done */
-.ob-done {
-  flex: 1;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 12px;
-  text-align: center;
-}
-.tick {
-  width: 84px;
-  height: 84px;
-}
-.tick circle {
-  fill: var(--highlight);
-  stroke: none;
-  animation: pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) both;
-}
-.tick path {
-  fill: none;
-  stroke: var(--highlight-ink);
-  stroke-width: 4.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 40;
-  stroke-dashoffset: 40;
-  animation: draw 0.4s ease-out 0.3s forwards;
-}
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
-  }
 }
 
 .link-form {
@@ -652,14 +386,24 @@ h3 {
   margin: 0 auto;
   padding: 0 16px calc(env(safe-area-inset-bottom) + 28px);
 }
+/* A translucent layer: classes scroll underneath it, blurred, instead of vanishing under a solid
+   bar. The hairline appears only once something is actually beneath it. */
 .top {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--paper);
-  padding: calc(env(safe-area-inset-top) + 14px) 0 10px;
+  margin: 0 -16px;
+  padding: calc(env(safe-area-inset-top) + 14px) 16px 10px;
   display: grid;
   gap: 12px;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 1px 0 transparent;
+  transition: box-shadow 0.2s;
+}
+.top.scrolled {
+  box-shadow: 0 1px 0 var(--line);
 }
 .top-row {
   display: flex;
@@ -694,6 +438,7 @@ h3 {
   flex: none;
 }
 .tabs {
+  position: relative;
   display: inline-flex;
   gap: 4px;
   padding: 4px;
@@ -703,14 +448,30 @@ h3 {
   justify-self: start;
 }
 .tabs button {
+  position: relative; /* above the thumb */
   padding: 7px 16px;
   border-radius: 10px;
   font-weight: 600;
   color: var(--muted);
 }
 .tabs button.active {
-  background: var(--ink);
   color: var(--paper);
+}
+/* The selected tab's background, which slides to whichever tab is chosen. */
+.tab-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: var(--thumb-w, 0);
+  transform: translateX(var(--thumb-x, 0));
+  border-radius: 10px;
+  background: var(--ink);
+}
+.tabs.placed .tab-thumb {
+  transition:
+    transform 0.4s var(--ease),
+    width 0.4s var(--ease);
 }
 
 .banner {
@@ -832,6 +593,7 @@ h3 {
 .progress i {
   display: block;
   height: 100%;
+  transition: width 0.6s var(--ease);
   background: currentColor;
   border-radius: 3px;
 }
@@ -967,6 +729,7 @@ h3 {
   text-transform: uppercase;
 }
 .day-strip b {
+  font-variant-numeric: tabular-nums;
   font-size: 18px;
   color: var(--ink);
   font-family: var(--display);
@@ -994,7 +757,10 @@ h3 {
   inset: 0;
   z-index: 20;
   background: rgba(10, 14, 30, 0.45);
-  animation: fade 0.2s;
+  opacity: 0; /* set by app.js, following the sheet */
+}
+.scrim.passive {
+  pointer-events: none; /* while the last sheet slides away, the app underneath already works */
 }
 .sheet {
   position: fixed;
@@ -1009,14 +775,47 @@ h3 {
   flex-direction: column;
   background: var(--paper);
   border-radius: 22px 22px 0 0;
-  animation: rise 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  box-shadow: 0 -12px 40px -18px rgba(10, 14, 30, 0.4);
+  will-change: transform; /* moved by app.js on a spring */
+}
+/* Pulled up past its top, a sheet stretches rather than showing a gap underneath. */
+.sheet::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: var(--paper);
+}
+/* The grabber says "you can drag this"; the whole top bar is the handle. */
+.sheet-grab {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
+}
+.sheet-grab::before {
+  content: "";
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
 }
 .sheet-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 18px 20px 6px;
+  padding: 24px 20px 6px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .sheet-bar h2 {
   margin: 0;
@@ -1101,7 +900,7 @@ h3 {
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s;
+  transition: transform 0.3s var(--ease);
 }
 .toggle:checked {
   background: var(--accent);
@@ -1208,6 +1007,17 @@ h3 {
   max-width: 320px;
   margin-top: 12px;
 }
+.share-back {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font-weight: 600;
+}
+#share-reset-status {
+  margin-top: 10px;
+}
 .qr {
   width: min(260px, 100%);
   aspect-ratio: 1;
@@ -1246,22 +1056,52 @@ a.row-btn {
   text-decoration: none;
 }
 
-@keyframes rise {
-  from {
-    transform: translateY(100%);
-  }
-}
 @keyframes fade {
   from {
     opacity: 0;
   }
 }
+/* Reduce Motion: nothing slides, scales or bounces, but feedback stays, as gentle fades.
+   Animations jump to their end rather than being removed, so things that only appear through an
+   animation (like the "now" cell in the logo) still appear. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation: none !important;
-    transition: none !important;
+    animation-duration: 1ms !important;
+    animation-delay: 0s !important;
+    transition-property: opacity, color, background-color, border-color, box-shadow !important;
+  }
+  .ob-hello h1,
+  .ob-hello .lede,
+  .ob-step > :not(.ob-hello) {
+    animation: fade 0.25s ease both !important;
+  }
+  :is(.btn, .row-btn, .icon-btn, .ob-back, .tabs button, .day-strip button, .pills button, .friend-chip):active {
+    transform: none;
+    opacity: 0.6;
+  }
+  .scrim {
+    transition: opacity 0.2s;
+  }
+}
+/* Reduce Transparency and Increase Contrast: solid chrome with a clear edge. */
+@media (prefers-reduced-transparency: reduce) {
+  .top {
+    background: var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .top {
+    background: var(--paper);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 1px 0 var(--muted);
+  }
+  .sheet-grab::before {
+    background: var(--muted);
   }
 }
 .danger-text {

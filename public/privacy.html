@@ -6,7 +6,7 @@
     <title>Privacy Policy · Studyslot</title>
     <meta
       name="description"
-      content="How Studyslot handles your information: no accounts, no tracking, nothing stored on our servers."
+      content="How Studyslot handles your information: no accounts, no tracking, and your timetable is never stored on our servers."
     />
     <link rel="preload" href="/fonts/bricolage-grotesque-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/legal.css" />
@@ -15,7 +15,7 @@
     <main>
       <a class="back" href="/">‹ Back to Studyslot</a>
       <h1>Privacy Policy</h1>
-      <p class="updated">Last updated 3 October 2026</p>
+      <p class="updated">Last updated 4 October 2026</p>
 
       <section class="summary" aria-label="Summary">
         <h2>The short version</h2>
@@ -74,13 +74,17 @@
         "Add to your calendar" and "Share with a friend" create links that contain your timetable link, your group
         choices, hidden modules, time zone and the name you chose. These are <b>encrypted</b> (AES-256-GCM) with a key
         that only Studyslot's server has, so anyone who sees a link can't read your timetable link from it or change it.
-        When the link is used, our server decrypts it, fetches your timetable, tidies it and sends it back. Nothing is
-        saved.
+        When the link is used, our server decrypts it, fetches your timetable, tidies it and sends it back. Your
+        timetable is not saved.
       </p>
       <p>
-        Because nothing is stored, we can't switch off one link on its own. If our key ever had to be changed, every
-        link would stop working at once and you would need to share again.
+        <b>Resetting your link.</b> In "Share with a friend" you can reset your link, so every friend link and QR code
+        you shared before stops working. To make that possible, our server keeps one record for each person who has
+        reset: the short one-way code described under Friends below, and a random number. It contains no name, no
+        timetable link and no classes, and can't be turned back into your link. It's kept while Studyslot runs, so your
+        old links stay switched off. Your "Add to your calendar" link is separate and keeps working after a reset.
       </p>
+      <p>If our key ever had to be changed, every link would stop working at once and you would need to share again.</p>
       <p>
         Links created before 3 October 2026 were encoded but <b>not encrypted</b>, so anyone with one could read the
         timetable link inside. They keep working until <b>1 February 2027</b> so you have time to share again, and then
@@ -99,8 +103,8 @@
         When a friend adds your link, their device gets your chosen name and your classes (only your groups, without
         modules you've hidden), but <b>not your timetable link</b>. Your classes are saved on their device so they can
         see them offline. Anyone you send your link to can see your classes in Studyslot, so only share it with people
-        you trust. We can't recall a link once it's shared. If you need to stop someone seeing your timetable, ask your
-        college whether they can issue you a new calendar link.
+        you trust. If you need to stop someone seeing your timetable, reset your link (see "Your sharing links" above)
+        and send the new one to the friends you still want; the people you don't send it to lose access within a minute.
       </p>
       <p>
         To spot the same friend twice, our server also gives the app a short code worked out from the timetable link
@@ -166,7 +170,11 @@
       <h2>5. How long information is kept</h2>
       <ul>
         <li>On your device: until you remove it.</li>
-        <li>On our servers: not kept. Timetables are processed in memory and discarded.</li>
+        <li>On our servers: timetables are not kept; they're processed in memory and discarded.</li>
+        <li>
+          Link resets: if you reset your link, a one-way code and a random number (no personal details) are kept so your
+          old links stay switched off.
+        </li>
         <li>Hosting logs: kept by Cloudflare for short periods under its own policy.</li>
         <li>Emails: deleted within 12 months.</li>
       </ul>

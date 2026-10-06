@@ -12,7 +12,10 @@ Planned as 1.0.0, the first public release. Tag `v1.0.0` on launch.
 - Today and week views, week numbers, lab group choice and hidden modules
 - Cleaned calendar feed for Apple and Google Calendar, with a 10-minute alert before each class
 - Friends: share by link or QR code, free time together and classes in common
-- First-run setup with college, course and year (CAO course lists for Dublin universities)
+- Reset my link: stop every friend link you've shared, without affecting your calendar subscription
+- After adding a friend, a prompt to share your link back
+- One-screen setup: paste your timetable link and go
+- Sheets you can drag and flick away, a sliding view switcher and a translucent header
 - Offline support (service worker) and Home Screen install
 - Privacy Policy and Terms of Use
 - Encrypted (AES-256-GCM) calendar-feed and friend links; friends see classes but never the timetable link

@@ -12,7 +12,7 @@ const SHELL = [
   "/lib/classes.js",
   "/lib/free-time.js",
   "/lib/share-links.js",
-  "/courses.json",
+  "/lib/motion.js",
   "/fonts/bricolage-grotesque-latin.woff2",
   "/vendor/qrcode.min.js",
   "/privacy",

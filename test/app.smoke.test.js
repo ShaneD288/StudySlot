@@ -100,7 +100,7 @@ describe("app smoke test", () => {
     expect(document.activeElement).toBe(todayTab);
   });
 
-  it("moves focus into a sheet, and back to the button that opened it on Escape", () => {
+  it("moves focus into a sheet, and back to the button that opened it on Escape", async () => {
     const opener = document.querySelector("#open-settings");
     opener.focus();
     opener.click();
@@ -108,7 +108,9 @@ describe("app smoke test", () => {
     expect(settings.hidden).toBe(false);
     expect(settings.contains(document.activeElement)).toBe(true);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-    expect(settings.hidden).toBe(true);
+    // Focus comes back at once; the sheet stops being interactive and then slides away.
     expect(document.activeElement).toBe(opener);
+    expect(settings.inert).toBe(true);
+    await vi.waitFor(() => expect(settings.hidden).toBe(true));
   });
 });

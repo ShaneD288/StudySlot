@@ -398,3 +398,65 @@ describe("GET /feed/<token>.ics with an encrypted token", () => {
     expect((await get(`/feed/${token}.ics`)).status).toBe(400);
   });
 });
+
+describe("Reset my link", () => {
+  // A stand-in for the LINK_RESETS KV namespace.
+  const kv = () => {
+    const entries = new Map();
+    return { entries, get: async (k) => entries.get(k) ?? null, put: async (k, v) => void entries.set(k, v) };
+  };
+  const share = (body, e) =>
+    worker.fetch(new Request("https://studyslot.test/api/share", { method: "POST", body: JSON.stringify(body) }), e);
+  const friend = (token, e) => get(`/api/friend?token=${encodeURIComponent(token)}`, e);
+  const feed = (token, e) => get(`/feed/${token}.ics`, e);
+  // Several requests each read the college's calendar, so each gets its own response.
+  beforeEach(() => upstream.mockImplementation(async () => new Response(fixture)));
+
+  it("stops earlier friend links working, while the new one works", async () => {
+    const e = env({ LINK_RESETS: kv() });
+    const before = (await (await share({ l: LINK, n: "Alex" }, e)).json()).token;
+    expect((await friend(before, e)).status).toBe(200);
+
+    const after = await (await share({ l: LINK, n: "Alex", reset: true }, e)).json();
+    expect(after.id).toBe((await (await share({ l: LINK }, e)).json()).id); // still the same friend
+    const res = await friend(before, e);
+    expect(res.status).toBe(410);
+    expect((await res.json()).error).toMatch(/was reset/);
+    expect((await friend(after.token, e)).status).toBe(200);
+  });
+
+  it("stops friend links made before this feature too", async () => {
+    const e = env({ LINK_RESETS: kv() });
+    const old = await sealToken({ l: LINK, n: "Alex" }, SHARE_KEY);
+    await share({ l: LINK, reset: true }, e);
+    expect((await friend(old, e)).status).toBe(410);
+    expect((await feed(old, e)).status).toBe(410); // nor can it be opened as a calendar instead
+  });
+
+  it("new links made after a reset carry the new generation", async () => {
+    const e = env({ LINK_RESETS: kv() });
+    await share({ l: LINK, reset: true }, e);
+    const later = (await (await share({ l: LINK, n: "Alex B" }, e)).json()).token;
+    expect((await friend(later, e)).status).toBe(200);
+  });
+
+  it("keeps calendar-only links working, and doesn't accept them as friend links", async () => {
+    const e = env({ LINK_RESETS: kv() });
+    const calendar = (await (await share({ l: LINK, p: "c" }, e)).json()).token;
+    await share({ l: LINK, reset: true }, e);
+    expect((await feed(calendar, e)).status).toBe(200);
+    expect((await friend(calendar, e)).status).toBe(400);
+  });
+
+  it("stores only an anonymous id and a random value", async () => {
+    const store = kv();
+    await share({ l: LINK, n: "Alex", reset: true }, env({ LINK_RESETS: store }));
+    const [[key, value]] = [...store.entries];
+    expect(key).toMatch(/^f[A-Za-z0-9_-]+$/);
+    expect(`${key}${value}`).not.toMatch(/timetable|Alex/);
+  });
+
+  it("says resetting isn't available without the store", async () => {
+    expect((await share({ l: LINK, reset: true }, env())).status).toBe(503);
+  });
+});

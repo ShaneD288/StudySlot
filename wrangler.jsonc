@@ -13,6 +13,10 @@
     { "name": "FEED_LIMITER", "namespace_id": "2202", "simple": { "limit": 10, "period": 60 } },
   ],
 
+  // "Reset my link": the current generation of each reset friend link, by anonymous link id
+  // (see src/index.js). Wrangler creates the namespace on the first deploy.
+  "kv_namespaces": [{ "binding": "LINK_RESETS" }],
+
   // Own domain: after buying e.g. studyslot.ie and adding it to Cloudflare, uncomment and deploy.
   // "routes": [{ "pattern": "studyslot.ie", "custom_domain": true }]
 }
