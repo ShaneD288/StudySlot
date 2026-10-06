@@ -48,9 +48,36 @@ export default {
       }
       return calendarFeed(feed[1], env);
     }
+    if (request.method === "GET" && url.pathname === "/") return homePage(request, url, env);
     return env.ASSETS.fetch(request);
   },
 };
+
+// ---------- Link previews ----------
+
+// The app's page, with its preview image as a full address (chat apps need one) and, for a friend
+// link, a preview that says what it is. The friend's name is left out on purpose: chat apps fetch
+// previews on their own servers and keep them.
+async function homePage(request, url, env) {
+  const res = await env.ASSETS.fetch(request);
+  if (res.status !== 200 || !res.headers.get("Content-Type")?.includes("text/html")) return res;
+  let html = (await res.text()).replace('content="/share.jpg"', `content="${url.origin}/share.jpg"`);
+  if (url.searchParams.has("friend")) {
+    html = html
+      .replace(
+        'property="og:title" content="Studyslot"',
+        'property="og:title" content="A friend shared their timetable"',
+      )
+      .replace(
+        /(property="og:description"\s+content=")[^"]*/,
+        "$1Open it in Studyslot to see when you're both free. No account needed.",
+      );
+  }
+  const headers = new Headers(res.headers);
+  headers.delete("Content-Length");
+  headers.delete("ETag"); // the page now differs from the stored file
+  return new Response(html, { status: 200, headers });
+}
 
 const json = (body, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });

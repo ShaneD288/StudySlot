@@ -460,3 +460,32 @@ describe("Reset my link", () => {
     expect((await share({ l: LINK, reset: true }, env())).status).toBe(503);
   });
 });
+
+describe("GET /: link previews", () => {
+  const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  const assets = {
+    fetch: vi.fn(async () => new Response(page, { headers: { "Content-Type": "text/html", ETag: '"abc"' } })),
+  };
+  const home = async (query = "") => get(`/${query}`, env({ ASSETS: assets }));
+  const meta = (html, property) => html.match(new RegExp(`property="${property}"\\s+content="([^"]*)"`))?.[1];
+
+  it("gives chat apps a full address for the preview image", async () => {
+    const res = await home();
+    const html = await res.text();
+    expect(meta(html, "og:image")).toBe("https://studyslot.test/share.jpg");
+    expect(meta(html, "og:title")).toBe("Studyslot");
+    expect(res.headers.get("ETag")).toBeNull();
+  });
+
+  it("says what a friend link is, without the friend's name or token", async () => {
+    const html = await (await home("?friend=SECRET-TOKEN")).text();
+    expect(meta(html, "og:title")).toBe("A friend shared their timetable");
+    expect(meta(html, "og:description")).toMatch(/see when you're both free/);
+    expect(html).not.toContain("SECRET-TOKEN");
+  });
+
+  it("passes anything other than the page straight through", async () => {
+    const res = await get("/", env({ ASSETS: { fetch: async () => new Response(null, { status: 304 }) } }));
+    expect(res.status).toBe(304);
+  });
+});

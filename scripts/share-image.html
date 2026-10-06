@@ -1,0 +1,93 @@
+<!doctype html>
+<!--
+  The link-preview image (public/share.jpg, 1200×630) shown when a Studyslot link is shared in
+  WhatsApp, iMessage, Instagram and so on. To regenerate it after a change, screenshot this page at
+  exactly 1200×630, e.g. from the repo root:
+    msedge --headless=new --hide-scrollbars --window-size=1200,630 --screenshot=share.png ^
+      file:///D:/studyslot/scripts/share-image.html
+  then save it as public/share.jpg (JPEG, quality ~90). Keep it under 300 KB: WhatsApp skips
+  larger preview images.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Studyslot share image</title>
+    <style>
+      @font-face {
+        font-family: "Bricolage Grotesque";
+        src: url("../public/fonts/bricolage-grotesque-latin.woff2") format("woff2");
+        font-weight: 500 800;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        gap: 72px;
+        padding: 0 96px;
+        box-sizing: border-box;
+        background: linear-gradient(150deg, #3a5ce8, #1f3cbf);
+        color: #fff;
+        font-family: "Bricolage Grotesque", system-ui, sans-serif;
+      }
+      /* The app icon's timetable grid, with "now" in highlighter yellow. */
+      .grid {
+        flex: none;
+        width: 300px;
+        height: 380px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 16px;
+      }
+      .grid i {
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.22);
+      }
+      .grid i:nth-child(-n + 3) {
+        background: #fff;
+      }
+      .grid i:nth-child(6),
+      .grid i:nth-child(10) {
+        background: rgba(255, 255, 255, 0.82);
+      }
+      .grid i.now {
+        background: #ffe15a;
+        box-shadow: 0 0 40px 6px rgba(255, 225, 90, 0.55);
+      }
+      h1 {
+        margin: 0 0 20px;
+        font-size: 112px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+      p {
+        margin: 0;
+        font-size: 40px;
+        font-weight: 600;
+        line-height: 1.22;
+        letter-spacing: -0.01em;
+        color: rgba(255, 255, 255, 0.88);
+      }
+      p b {
+        color: #ffe15a;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid" aria-hidden="true">
+      <i></i><i></i><i></i> <i></i><i></i><i></i> <i></i><i class="now"></i><i></i> <i></i><i></i><i></i>
+    </div>
+    <div>
+      <h1>Studyslot</h1>
+      <p>Your timetable, cleaned up.<br />See when your friends are <b>free</b>.</p>
+    </div>
+  </body>
+</html>
