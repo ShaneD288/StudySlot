@@ -257,7 +257,7 @@ function renderInstall() {
             { class: "btn small", onclick: () => promptInstall().then((done) => done && dismiss()) },
             "Install",
           )
-        : h("button", { class: "btn small", onclick: openInstallGuide }, "Show me how"),
+        : h("button", { class: "btn small", onclick: () => openInstallGuide() }, "Show me how"),
       h("button", { class: "text-btn", onclick: dismiss }, "Not now"),
     ),
   );
@@ -281,7 +281,13 @@ function showInstallSteps(os) {
   $("#install-ios").hidden = os !== "ios";
   $("#install-android").hidden = os !== "android";
 }
-function openInstallGuide() {
+const INSTALL_INTRO = $("#install-intro").textContent.trim();
+// asTip: the one-time "Did you know?" popup rather than the guide someone asked for.
+function openInstallGuide(asTip = false) {
+  $("#install-title").textContent = asTip ? "Did you know?" : "Add to Home Screen";
+  $("#install-intro").textContent = asTip
+    ? "You can add Studyslot to your Home Screen. It then opens like an app, full screen, and works without a connection."
+    : INSTALL_INTRO;
   showInstallSteps(isAndroid() ? "android" : "ios");
   $("#install-done").hidden = !isInstalled();
   $("#install-now").hidden = !installPrompt;
@@ -297,7 +303,20 @@ $("#install-now").addEventListener("click", async () => {
     render();
   } else $("#install-now").hidden = !installPrompt;
 });
-$("#install-help").addEventListener("click", openInstallGuide);
+$("#install-help").addEventListener("click", () => openInstallGuide());
+
+// Once the timetable is in and groups are picked, suggest adding Studyslot to the Home Screen,
+// once, on phones that can. It waits rather than stacking on another sheet, and replaces the
+// banner on Today.
+function maybeShowInstallTip() {
+  if (store.get("installTipShown") || isInstalled() || !(isIOS() || isAndroid() || installPrompt)) return;
+  const groupsPending = (data?.groupChoices || []).some((m) => !groups[m.title]) && !store.get("askedGroups");
+  if (!data || groupsPending || $("#app").hidden || openSheetEl()) return; // try again later
+  store.set("installTipShown", true);
+  store.set("installDismissed", true);
+  openInstallGuide(true);
+  renderInstall();
+}
 
 // ---------- Beta ----------
 
@@ -529,7 +548,7 @@ $("#link-form").addEventListener("submit", async (e) => {
     // Someone who came from a friend's link sees their free time together first.
     view = firstTime && friends.length ? "friends" : "today";
     showApp();
-    maybeAskGroups();
+    if (!maybeAskGroups()) setTimeout(maybeShowInstallTip, 1200);
   } catch (err) {
     $("#link-error").textContent = err.message;
     $("#link-error").hidden = false;
@@ -574,11 +593,12 @@ function groupRows(onChange) {
 
 function maybeAskGroups() {
   const undecided = (data?.groupChoices || []).some((m) => !groups[m.title]);
-  if (!undecided || store.get("askedGroups")) return;
+  if (!undecided || store.get("askedGroups")) return false;
   store.set("askedGroups", true);
   const fill = () => $("#gp-groups").replaceChildren(...groupRows(fill));
   fill();
-  openSheet($("#groups-prompt"));
+  openSheet($("#groups-prompt"), { onClose: () => setTimeout(maybeShowInstallTip, 400) });
+  return true;
 }
 
 // ---------- Sharing (calendar feed + friend links) ----------
@@ -1139,8 +1159,11 @@ function moveSheet(sheet, to, { velocity = 0, response = 0.35, damping = 1 } = {
   });
 }
 
-function openSheet(sheet) {
+const afterClose = new Map(); // sheet -> function to run once it has closed
+
+function openSheet(sheet, { onClose } = {}) {
   if (!openSheetEl()) sheetOpener = document.activeElement;
+  if (onClose) afterClose.set(sheet, onClose);
   $("#scrim").hidden = false;
   const appearing = sheet.hidden;
   sheet.hidden = false;
@@ -1159,6 +1182,9 @@ function closeSheet(sheet, velocity = 0) {
     sheet.classList.remove("closing");
     sheet.inert = false;
     if (!document.querySelector(".sheet:not([hidden])")) $("#scrim").hidden = true;
+    const then = afterClose.get(sheet);
+    afterClose.delete(sheet);
+    then?.();
   });
 }
 
@@ -1398,6 +1424,7 @@ $("#forget").addEventListener("click", () => {
 if (link && data) {
   showApp();
   refresh();
+  setTimeout(maybeShowInstallTip, 1500);
 } else if (link) {
   refresh({ force: true });
 } else {

@@ -19,7 +19,7 @@ Planned as 1.0.0, the first public release. Tag `v1.0.0` on launch.
 - Sheets you can drag and flick away, a sliding view switcher and a translucent header
 - Offline support (service worker) and Home Screen install
 - Privacy Policy and Terms of Use
-- Beta label, an in-app feedback form (read with `npm run feedback`) and a step-by-step Add to Home Screen guide for iPhone and Android
+- Beta label, an in-app feedback form (read with `npm run feedback`) and a step-by-step Add to Home Screen guide for iPhone and Android, shown once as a "Did you know?" popup after setup
 - Encrypted (AES-256-GCM) calendar-feed and friend links; friends see classes but never the timetable link
 - Tests (Vitest) for parsing, time zones, timetable cleanup, the Worker, app logic and an app smoke test
 - GitHub Actions: lint, format check and tests on every push; deploy to Cloudflare after CI passes on `main`
