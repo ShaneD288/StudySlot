@@ -8,4 +8,6 @@
 6. **Check the name** on the EU trademark register ([TMview](https://www.tmdn.org/tmview)) for "Studyslot". An EU trademark costs from €850; an Irish one starts lower.
 7. **Have the legal pages reviewed** before sharing widely.
 8. **Test on real phones:** at least one iPhone (Safari) and one Android (Chrome): install, offline mode, calendar feed subscription, adding a friend by QR code.
-9. **Tag the release:** `git tag -a v1.0.0 -m "Studyslot 1.0.0"` and update `CHANGELOG.md` with the date.
+9. **After the first deploy:** in the Cloudflare dashboard, check that Wrangler created the `LINK_RESETS` KV namespace. Then, on the live site, share a friend link, tap **Reset my link**, and check the old link says it was reset (allow a minute) while your calendar subscription keeps working.
+10. **Check link previews:** paste the live address and a friend link into WhatsApp and iMessage. Both should show the Studyslot image; the friend link should say "A friend shared their timetable".
+11. **Tag the release:** `git tag -a v1.0.0 -m "Studyslot 1.0.0"` and update `CHANGELOG.md` with the date.
