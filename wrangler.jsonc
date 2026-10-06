@@ -2,6 +2,9 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "studyslot",
   "main": "src/index.js",
+  // The "Studyslot" Cloudflare account, kept apart from other projects. Pinned so a deploy can
+  // never land in another account the same login can reach.
+  "account_id": "82f3dd74a88c72cac39afeefb02e3cb7",
   "compatibility_date": "2026-09-01",
   // Only fetch public addresses when reading timetable links.
   "compatibility_flags": ["global_fetch_strictly_public"],
