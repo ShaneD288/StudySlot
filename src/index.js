@@ -28,6 +28,12 @@ export default {
   // Rate limits and link checks below keep the timetable reader from being misused.
   async fetch(request, env) {
     const url = new URL(request.url);
+    // One address for everyone: the app keeps a student's timetable and friends per address, so
+    // www.studyslot.ie sends people to studyslot.ie (path and query kept, e.g. friend links).
+    if (url.hostname.startsWith("www.")) {
+      url.hostname = url.hostname.slice(4);
+      return Response.redirect(url.href, 301);
+    }
     const route = API[`${request.method} ${url.pathname}`];
     if (route) {
       // One visitor can't use Studyslot to hammer college servers (or anyone else's).

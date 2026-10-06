@@ -4,9 +4,7 @@
 
 Your college timetable, cleaned up: paste your calendar link, see what's on, where and when.
 
-**Live:** _coming soon_
-
-<!-- TODO(Shane): add the live link once the domain is set up, e.g. https://studyslot.ie -->
+**Live:** [studyslot.ie](https://studyslot.ie) (beta)
 
 <!--
   DRAFT NOTES: Shane to rewrite this intro in his own words. Points to cover:

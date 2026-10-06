@@ -590,3 +590,11 @@ describe("hardening", () => {
     expect(feed.headers.get("X-Robots-Tag")).toMatch(/noindex/);
   });
 });
+
+describe("www.", () => {
+  it("redirects to the main address, keeping the path and friend link", async () => {
+    const res = await worker.fetch(new Request("https://www.studyslot.test/?friend=abc"), env());
+    expect(res.status).toBe(301);
+    expect(res.headers.get("Location")).toBe("https://studyslot.test/?friend=abc");
+  });
+});

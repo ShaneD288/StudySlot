@@ -23,6 +23,11 @@
   // FEEDBACK: messages from the in-app feedback form, each deleted after a year.
   "kv_namespaces": [{ "binding": "LINK_RESETS" }, { "binding": "FEEDBACK" }],
 
-  // Own domain: after buying e.g. studyslot.ie and adding it to Cloudflare, uncomment and deploy.
-  // "routes": [{ "pattern": "studyslot.ie", "custom_domain": true }]
+  // The app at studyslot.ie (and www.). Cloudflare creates the DNS records and certificates.
+  // No workers.dev address: students use one address, so links and saved data stay together.
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "studyslot.ie", "custom_domain": true },
+    { "pattern": "www.studyslot.ie", "custom_domain": true },
+  ],
 }
