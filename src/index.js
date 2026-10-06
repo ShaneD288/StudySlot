@@ -35,6 +35,12 @@ export default {
       if (env.API_LIMITER && !(await env.API_LIMITER.limit({ key: ip })).success) {
         return json({ error: "Too many requests. Wait a minute and try again." }, 429);
       }
+      // Feedback and link resets share the account's daily KV write allowance, so one visitor
+      // can't use up the day's writes with feedback.
+      if (url.pathname === "/api/feedback" && env.FEEDBACK_LIMITER) {
+        if (!(await env.FEEDBACK_LIMITER.limit({ key: ip })).success)
+          return json({ error: "That's a lot of feedback at once. Wait a minute and try again." }, 429);
+      }
       try {
         return await route(request, url, env);
       } catch (err) {
@@ -78,6 +84,8 @@ async function homePage(request, url, env) {
   const headers = new Headers(res.headers);
   headers.delete("Content-Length");
   headers.delete("ETag"); // the page now differs from the stored file
+  // A friend link someone posts publicly shouldn't end up in search results.
+  if (url.searchParams.has("friend")) headers.set("X-Robots-Tag", "noindex, nofollow");
   return new Response(html, { status: 200, headers });
 }
 
@@ -313,7 +321,7 @@ async function saveFeedback(request, env) {
 const escapeText = (s) =>
   String(s)
     .replace(/[\\;,]/g, (c) => "\\" + c)
-    .replace(/\r?\n/g, "\\n");
+    .replace(/\r\n|\r|\n/g, "\\n"); // any line break, so text can never start a new line
 const icsTime = (iso) => iso.replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 const fold = (line) => {
   const out = [];
@@ -400,6 +408,7 @@ async function calendarFeed(token, env) {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
       "Content-Disposition": 'inline; filename="studyslot.ics"',
+      "X-Robots-Tag": "noindex, nofollow",
       "Cache-Control": "no-store",
     },
   });

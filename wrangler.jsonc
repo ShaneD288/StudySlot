@@ -14,6 +14,8 @@
   "ratelimits": [
     { "name": "API_LIMITER", "namespace_id": "2201", "simple": { "limit": 20, "period": 60 } },
     { "name": "FEED_LIMITER", "namespace_id": "2202", "simple": { "limit": 10, "period": 60 } },
+    // Feedback: a few messages a minute per visitor (each one is a KV write).
+    { "name": "FEEDBACK_LIMITER", "namespace_id": "2203", "simple": { "limit": 3, "period": 60 } },
   ],
 
   // "Reset my link": the current generation of each reset friend link, by anonymous link id

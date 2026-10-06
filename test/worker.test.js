@@ -560,3 +560,33 @@ describe("POST /api/feedback", () => {
     expect((await send({ message: "Hi" }, env({ FEEDBACK: kv(), API_LIMITER: { limit } }))).status).toBe(429);
   });
 });
+
+describe("hardening", () => {
+  it("gives feedback its own, tighter rate limit", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    const res = await worker.fetch(
+      new Request("https://studyslot.test/api/feedback", { method: "POST", body: JSON.stringify({ message: "Hi" }) }),
+      env({ FEEDBACK: { put: vi.fn() }, FEEDBACK_LIMITER: { limit } }),
+    );
+    expect(res.status).toBe(429);
+    expect(limit).toHaveBeenCalled();
+  });
+
+  it("doesn't apply the feedback limit to other requests", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    respondWith(fixture);
+    const res = await get(`/api/timetable?link=${encodeURIComponent(LINK)}`, env({ FEEDBACK_LIMITER: { limit } }));
+    expect(res.status).toBe(200);
+    expect(limit).not.toHaveBeenCalled();
+  });
+
+  it("keeps friend links and calendar feeds out of search engines", async () => {
+    const page = '<meta property="og:image" content="/share.jpg" />';
+    const assets = { fetch: async () => new Response(page, { headers: { "Content-Type": "text/html" } }) };
+    expect((await get("/?friend=abc", env({ ASSETS: assets }))).headers.get("X-Robots-Tag")).toMatch(/noindex/);
+    expect((await get("/", env({ ASSETS: assets }))).headers.get("X-Robots-Tag")).toBeNull();
+    respondWith(fixture);
+    const feed = await get(`/feed/${await sealToken({ l: LINK, p: "c" }, SHARE_KEY)}.ics`);
+    expect(feed.headers.get("X-Robots-Tag")).toMatch(/noindex/);
+  });
+});
