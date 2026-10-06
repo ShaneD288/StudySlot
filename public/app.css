@@ -1107,3 +1107,145 @@ a.row-btn {
 .danger-text {
   color: var(--danger);
 }
+
+/* ---------- Beta ---------- */
+.beta-badge {
+  display: inline-block;
+  vertical-align: 0.6em;
+  margin-left: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font: 800 13px/1 var(--body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.beta-note {
+  margin: 6px 0 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--highlight) 22%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--highlight) 60%, var(--line));
+  display: grid;
+  gap: 10px;
+  animation: rise-in 0.4s ease-out both;
+}
+.beta-note p {
+  margin: 0;
+  font-size: 15px;
+}
+.beta-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.link-btn {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.error.ok {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* ---------- Feedback ---------- */
+.feedback-form {
+  display: grid;
+  gap: 12px;
+}
+.feedback-kind {
+  flex-wrap: wrap;
+}
+.feedback-kind button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.feedback-form textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+.feedback-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.feedback-form .name-field {
+  margin-top: 0;
+}
+.feedback-form .hint {
+  margin: 0;
+}
+
+/* ---------- Add to Home Screen guide ---------- */
+.install-tabs {
+  margin-bottom: 14px;
+}
+.install-tabs button.active {
+  background: var(--ink);
+}
+.install-done {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 12%, var(--card));
+  font-weight: 600;
+}
+.steps {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  counter-reset: step;
+}
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.step-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* The step number sits on the icon's corner. */
+.step-icon::after {
+  content: counter(step);
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 800 12px/1 var(--body);
+}
+#install-now {
+  margin-bottom: 14px;
+}

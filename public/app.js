@@ -48,7 +48,6 @@ const store = {
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const APP_VERSION = "1.0.0";
-const CONTACT = "hello@studyslot.ie";
 const STALE_MS = 30 * 60 * 1000;
 
 // Saved by older versions and no longer used: course and year, and one shared link for everything.
@@ -227,6 +226,7 @@ window.addEventListener("beforeinstallprompt", (e) => {
 const isInstalled = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const isIOS = () =>
   /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isAndroid = () => /Android/.test(navigator.userAgent);
 
 function renderInstall() {
   const el = $("#install-banner");
@@ -235,46 +235,84 @@ function renderInstall() {
     store.set("installDismissed", true);
     el.hidden = true;
   };
-  if (isInstalled() || store.get("installDismissed") || (!installPrompt && !isIOS())) {
+  // Only on phones (and browsers that can install), and only until it's installed or dismissed.
+  if (isInstalled() || store.get("installDismissed") || (!installPrompt && !isIOS() && !isAndroid())) {
     el.hidden = true;
     return;
   }
-  const shareIcon = h("span", { class: "share-icon", role: "img", "aria-label": "Share" });
-  shareIcon.innerHTML =
-    '<svg width="16" height="18" viewBox="0 0 16 20" aria-hidden="true"><path d="M8 13V2M4 5.5 8 1.5l4 4M3 9H1.5v9.5h13V9H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   el.hidden = false;
   el.replaceChildren(
     h(
       "div",
       { class: "install-text" },
       h("b", {}, "Add Studyslot to your Home Screen"),
-      installPrompt
-        ? h("span", {}, "Open it like an app, even offline.")
-        : h("span", {}, "In Safari, tap ", shareIcon, " Share, then ", h("b", {}, "Add to Home Screen"), "."),
+      h("span", {}, "Open it like an app, even offline."),
     ),
     h(
       "div",
       { class: "install-actions" },
-      installPrompt &&
-        h(
-          "button",
-          {
-            class: "btn small",
-            onclick: async () => {
-              installPrompt.prompt();
-              await installPrompt.userChoice.catch(() => {});
-              installPrompt = null;
-              dismiss();
-            },
-          },
-          "Install",
-        ),
+      installPrompt
+        ? h(
+            "button",
+            { class: "btn small", onclick: () => promptInstall().then((done) => done && dismiss()) },
+            "Install",
+          )
+        : h("button", { class: "btn small", onclick: openInstallGuide }, "Show me how"),
       h("button", { class: "text-btn", onclick: dismiss }, "Not now"),
     ),
   );
 }
 
+/** Shows the browser's own install prompt (Android, desktop Chrome). True if it was installed. */
+async function promptInstall() {
+  if (!installPrompt) return false;
+  installPrompt.prompt();
+  const choice = await installPrompt.userChoice.catch(() => null);
+  installPrompt = null;
+  return choice?.outcome === "accepted";
+}
+
+// Step-by-step guide for iPhone and Android, opened on the tab for this phone.
+function showInstallSteps(os) {
+  document.querySelectorAll("#install-tabs [data-os]").forEach((b) => {
+    b.classList.toggle("active", b.dataset.os === os);
+    b.setAttribute("aria-selected", String(b.dataset.os === os));
+  });
+  $("#install-ios").hidden = os !== "ios";
+  $("#install-android").hidden = os !== "android";
+}
+function openInstallGuide() {
+  showInstallSteps(isAndroid() ? "android" : "ios");
+  $("#install-done").hidden = !isInstalled();
+  $("#install-now").hidden = !installPrompt;
+  openSheet($("#install-sheet"));
+}
+document
+  .querySelectorAll("#install-tabs [data-os]")
+  .forEach((b) => b.addEventListener("click", () => showInstallSteps(b.dataset.os)));
+$("#install-now").addEventListener("click", async () => {
+  if (await promptInstall()) {
+    store.set("installDismissed", true);
+    closeSheets();
+    render();
+  } else $("#install-now").hidden = !installPrompt;
+});
+$("#install-help").addEventListener("click", openInstallGuide);
+
+// ---------- Beta ----------
+
+// A note on Today until it's hidden; Settings and the welcome screen always say it's a beta.
+function renderBetaNote() {
+  $("#beta-note").hidden = !!store.get("betaNoteHidden");
+}
+$("#beta-dismiss").addEventListener("click", () => {
+  store.set("betaNoteHidden", true);
+  renderBetaNote();
+});
+$("#app-version").textContent = APP_VERSION;
+
 function renderToday() {
+  renderBetaNote();
   renderInstall();
   renderNowCard();
   const list = classesOn(todayKey());
@@ -359,7 +397,7 @@ function render() {
         ? "Week"
         : "Friends";
   for (const v of VIEWS) $(`#view-${v}`).hidden = view !== v;
-  document.querySelectorAll(".tabs button").forEach((b) => {
+  document.querySelectorAll("#view-tabs button").forEach((b) => {
     b.classList.toggle("active", b.dataset.view === view);
     b.setAttribute("aria-selected", String(b.dataset.view === view));
   });
@@ -371,7 +409,7 @@ function render() {
   $("#updated").textContent = `Updated ${mins < 1 ? "just now" : mins < 60 ? `${mins} min ago` : when(data.fetchedAt)}`;
 }
 
-document.querySelectorAll(".tabs button").forEach((b) =>
+document.querySelectorAll("#view-tabs button").forEach((b) =>
   b.addEventListener("click", () => {
     const direction = Math.sign(VIEWS.indexOf(b.dataset.view) - VIEWS.indexOf(view));
     view = b.dataset.view;
@@ -411,6 +449,7 @@ function showWelcome(error) {
   $("#ob-back").hidden = !data;
   $("#link-error").hidden = !error;
   $("#link-error").textContent = error || "";
+  $("#link-error").classList.remove("ok");
   // Typing is the only thing to do here, but don't pop the keyboard over a returning visitor's error.
   if (!error && window.matchMedia?.("(hover: hover)").matches) $("#link-input").focus();
 }
@@ -472,6 +511,7 @@ $("#link-form").addEventListener("submit", async (e) => {
   button.disabled = true;
   button.textContent = "Reading your timetable…";
   $("#link-error").hidden = true;
+  $("#link-error").classList.remove("ok");
   try {
     const result = await fetchTimetable(value);
     if (!result.classes.length) {
@@ -1237,19 +1277,95 @@ $("#open-settings").addEventListener("click", () => {
   fillSettings();
   openSheet($("#settings"));
 });
-$("#feedback").addEventListener("click", () => {
-  const body = [
-    "What happened, or what would you like Studyslot to do?",
-    "",
-    "",
-    "---",
-    "College: TU Dublin",
-    `App version: ${APP_VERSION}`,
-    `Device: ${navigator.userAgent}`,
-    "(Your timetable link is not included.)",
-  ].join("\n");
-  location.href = `mailto:${CONTACT}?subject=${encodeURIComponent("Studyslot feedback")}&body=${encodeURIComponent(body)}`;
+// ---------- Feedback ----------
+
+// Sent to /api/feedback and read with `npm run feedback`. Never includes the timetable link.
+let feedbackKind = "bug";
+function openFeedback() {
+  $("#feedback-error").hidden = true;
+  openSheet($("#feedback-sheet"));
+  $("#feedback-text").focus({ preventScroll: true });
+}
+document.querySelectorAll("[data-feedback]").forEach((b) => b.addEventListener("click", openFeedback));
+document.querySelectorAll(".feedback-kind [data-kind]").forEach((b) =>
+  b.addEventListener("click", () => {
+    feedbackKind = b.dataset.kind;
+    document
+      .querySelectorAll(".feedback-kind [data-kind]")
+      .forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  }),
+);
+
+// "iPhone · Safari · Home Screen": enough to reproduce a problem, without the full browser string.
+function deviceSummary() {
+  const ua = navigator.userAgent;
+  const device = isIOS()
+    ? /iPad/.test(ua) || !/iPhone|iPod/.test(ua)
+      ? "iPad"
+      : "iPhone"
+    : isAndroid()
+      ? "Android"
+      : /Mac/.test(ua)
+        ? "Mac"
+        : /Windows/.test(ua)
+          ? "Windows"
+          : "Other";
+  const browser = /SamsungBrowser/.test(ua)
+    ? "Samsung Internet"
+    : /Edg\//.test(ua)
+      ? "Edge"
+      : /CriOS|Chrome/.test(ua)
+        ? "Chrome"
+        : /FxiOS|Firefox/.test(ua)
+          ? "Firefox"
+          : /Safari/.test(ua)
+            ? "Safari"
+            : "Other";
+  return [device, browser, isInstalled() && "Home Screen"].filter(Boolean).join(" · ");
+}
+
+$("#feedback-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const message = $("#feedback-text").value.trim();
+  const error = $("#feedback-error");
+  if (!message) return $("#feedback-text").focus();
+  const button = $("#feedback-send");
+  button.disabled = true;
+  button.textContent = "Sending…";
+  error.hidden = true;
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: feedbackKind,
+        message,
+        email: $("#feedback-email").value.trim(),
+        version: APP_VERSION,
+        device: deviceSummary(),
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Couldn't send. Check your connection and try again.");
+  } catch (err) {
+    error.textContent = err instanceof TypeError ? "Couldn't send. Check your connection and try again." : err.message;
+    error.hidden = false;
+    return;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Send";
+  }
+  $("#feedback-text").value = "";
+  closeSheets();
+  if (!$("#app").hidden) banner("Thanks for the feedback! It helps make Studyslot better.");
+  else alertWelcome("Thanks for the feedback!");
 });
+// On the welcome screen there's no banner, so the thanks goes under the link form.
+function alertWelcome(message) {
+  $("#link-error").textContent = message;
+  $("#link-error").classList.add("ok");
+  $("#link-error").hidden = false;
+}
 
 $("#change-link").addEventListener("click", () => {
   closeSheets();

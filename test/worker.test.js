@@ -489,3 +489,74 @@ describe("GET /: link previews", () => {
     expect(res.status).toBe(304);
   });
 });
+
+describe("POST /api/feedback", () => {
+  const kv = () => {
+    const entries = new Map();
+    return { entries, put: vi.fn(async (k, v, options) => void entries.set(k, { value: JSON.parse(v), options })) };
+  };
+  const send = (body, e) =>
+    worker.fetch(
+      new Request("https://studyslot.test/api/feedback", {
+        method: "POST",
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      }),
+      e,
+    );
+
+  it("stores the message with its kind, version and device, for a year", async () => {
+    const store = kv();
+    const res = await send(
+      { kind: "idea", message: "  Dark mode for the week view  ", version: "1.0.0", device: "iPhone · Safari" },
+      env({ FEEDBACK: store }),
+    );
+    expect(res.status).toBe(200);
+    const [{ value, options }] = [...store.entries.values()];
+    expect(value).toEqual({
+      at: "2026-10-01T12:00:00.000Z",
+      kind: "idea",
+      message: "Dark mode for the week view",
+      email: "",
+      version: "1.0.0",
+      device: "iPhone · Safari",
+    });
+    expect(options.expirationTtl).toBe(365 * 24 * 60 * 60);
+  });
+
+  it("keeps a valid reply address, drops an invalid one, and keeps only known fields", async () => {
+    const store = kv();
+    await send({ message: "Hi", email: "sam@example.ie", l: "https://x.ie/a.ics" }, env({ FEEDBACK: store }));
+    await send({ message: "Hi", email: "not an email", kind: "rant" }, env({ FEEDBACK: store }));
+    const [first, second] = [...store.entries.values()].map((e) => e.value);
+    expect(first.email).toBe("sam@example.ie");
+    expect(first).not.toHaveProperty("l");
+    expect(second.email).toBe("");
+    expect(second.kind).toBe("other");
+  });
+
+  it("keeps two messages sent at the same moment apart", async () => {
+    const store = kv();
+    await send({ message: "One" }, env({ FEEDBACK: store }));
+    await send({ message: "Two" }, env({ FEEDBACK: store }));
+    expect(store.entries.size).toBe(2);
+  });
+
+  it.each([
+    ["an empty message", { message: "   " }, 400],
+    ["a body that isn't JSON", "{oops", 400],
+    ["a body that's too large", { message: "x".repeat(9000) }, 413],
+  ])("rejects %s", async (_, body, status) => {
+    const store = kv();
+    expect((await send(body, env({ FEEDBACK: store }))).status).toBe(status);
+    expect(store.put).not.toHaveBeenCalled();
+  });
+
+  it("says feedback isn't available without the store", async () => {
+    expect((await send({ message: "Hi" }, env())).status).toBe(503);
+  });
+
+  it("is rate limited like the rest of the API", async () => {
+    const limit = vi.fn(async () => ({ success: false }));
+    expect((await send({ message: "Hi" }, env({ FEEDBACK: kv(), API_LIMITER: { limit } }))).status).toBe(429);
+  });
+});

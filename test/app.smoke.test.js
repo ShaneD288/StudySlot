@@ -113,4 +113,43 @@ describe("app smoke test", () => {
     expect(settings.inert).toBe(true);
     await vi.waitFor(() => expect(settings.hidden).toBe(true));
   });
+
+  it("shows the beta note on Today until it's hidden", () => {
+    document.querySelector('.tabs button[data-view="today"]').click();
+    expect(document.querySelector("#beta-note").hidden).toBe(false);
+    document.querySelector("#beta-dismiss").click();
+    expect(document.querySelector("#beta-note").hidden).toBe(true);
+    expect(localStorage.getItem("studyslot.betaNoteHidden")).toBe("true");
+  });
+
+  it("sends feedback with the app version and phone type, but not the timetable link", async () => {
+    fetch.mockImplementationOnce(async () => Response.json({ ok: true }));
+    document.querySelector("[data-feedback]").click();
+    expect(document.querySelector("#feedback-sheet").hidden).toBe(false);
+    document.querySelector('.feedback-kind [data-kind="idea"]').click();
+    document.querySelector("#feedback-text").value = "Love it";
+    document.querySelector("#feedback-form").dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect(document.querySelector("#banner").hidden).toBe(false));
+    const [url, init] = fetch.mock.calls.findLast(([u]) => u === "/api/feedback");
+    const sent = JSON.parse(init.body);
+    expect(url).toBe("/api/feedback");
+    expect(sent).toMatchObject({ kind: "idea", message: "Love it", version: expect.any(String) });
+    expect(sent.device).toBeTruthy();
+    expect(init.body).not.toContain("timetable.example.ie");
+  });
+
+  it("opens the Home Screen guide from Settings, with a tab for each phone", async () => {
+    document.querySelector("#open-settings").click();
+    document.querySelector("#install-help").click();
+    expect(document.querySelector("#install-sheet").hidden).toBe(false);
+    const viewBefore = document.querySelector("#heading").textContent;
+    document.querySelector('#install-tabs [data-os="android"]').click();
+    expect(document.querySelector("#install-android").hidden).toBe(false);
+    expect(document.querySelector("#install-ios").hidden).toBe(true);
+    expect(document.querySelector('#install-tabs [data-os="android"]').classList.contains("active")).toBe(true);
+    // Switching phone doesn't switch the app's view behind the sheet.
+    expect(document.querySelector("#heading").textContent).toBe(viewBefore);
+    document.querySelector('#install-tabs [data-os="ios"]').click();
+    expect(document.querySelector("#install-ios").hidden).toBe(false);
+  });
 });

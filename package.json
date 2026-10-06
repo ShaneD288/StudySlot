@@ -9,6 +9,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "icons": "node scripts/make-icons.js",
+    "feedback": "node scripts/read-feedback.js",
     "predeploy": "node scripts/check-launch.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

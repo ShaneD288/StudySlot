@@ -62,7 +62,7 @@
           <div class="logo-grid" aria-hidden="true">
             <i></i><i></i><i></i> <i></i><i></i><i></i> <i></i><i class="now"></i><i></i> <i></i><i></i><i></i>
           </div>
-          <h1>Studyslot</h1>
+          <h1>Studyslot <span class="beta-badge">Beta</span></h1>
           <p class="lede" id="link-sub">Paste your timetable's calendar link to see what's on, where, and when.</p>
         </div>
         <form id="link-form" class="link-form">
@@ -100,6 +100,9 @@
         <p class="legal-note">
           By continuing you agree to the <a href="/terms">Terms of Use</a> and <a href="/privacy">Privacy Policy</a>.
           For students aged 16+.
+        </p>
+        <p class="legal-note">
+          Studyslot is in beta. Having trouble? <button class="link-btn" data-feedback>Send feedback</button>
         </p>
       </section>
     </main>
@@ -142,6 +145,13 @@
 
       <!-- Today -->
       <section id="view-today" class="view" role="tabpanel" aria-label="Today">
+        <div id="beta-note" class="beta-note" hidden>
+          <p><b>Studyslot is in beta.</b> Some things may not work yet. Tell us what you find.</p>
+          <div class="beta-actions">
+            <button class="btn small" data-feedback>Send feedback</button>
+            <button class="text-btn" id="beta-dismiss">Hide</button>
+          </div>
+        </div>
         <div id="install-banner" class="install" hidden></div>
         <div id="now-card" class="now-card"></div>
         <div id="today-list" class="day-list"></div>
@@ -235,10 +245,12 @@
 
         <h3>Help</h3>
         <div class="stack">
-          <button class="row-btn" id="feedback">Send feedback</button>
+          <button class="row-btn" data-feedback>Send feedback</button>
+          <button class="row-btn" id="install-help">Add Studyslot to your Home Screen</button>
           <a class="row-btn" href="/privacy">Privacy Policy</a>
           <a class="row-btn" href="/terms">Terms of Use</a>
         </div>
+        <p class="privacy">Studyslot is in beta (version <span id="app-version"></span>).</p>
         <p class="privacy">
           Studyslot is independent and not connected to any college. Always check your college's official timetable.
         </p>
@@ -261,6 +273,151 @@
         </p>
         <div id="gp-groups" class="stack"></div>
         <button class="btn" data-close>Done</button>
+      </div>
+    </section>
+
+    <!-- Feedback -->
+    <section id="feedback-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="feedback-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="feedback-title">Send feedback</h2>
+        <button class="text-btn" data-close>Cancel</button>
+      </div>
+      <div class="sheet-body">
+        <p class="hint">Studyslot is in beta, so this really helps. What's broken, confusing or missing?</p>
+        <form id="feedback-form" class="feedback-form">
+          <div class="pills feedback-kind" role="group" aria-label="Kind of feedback">
+            <button type="button" data-kind="bug" aria-pressed="true">Something's wrong</button>
+            <button type="button" data-kind="idea" aria-pressed="false">An idea</button>
+            <button type="button" data-kind="other" aria-pressed="false">Other</button>
+          </div>
+          <textarea
+            id="feedback-text"
+            rows="5"
+            maxlength="2000"
+            required
+            placeholder="What happened? What did you expect?"
+            aria-label="Your feedback"
+          ></textarea>
+          <label class="name-field"
+            >Your email (optional)
+            <input
+              id="feedback-email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              placeholder="Only if you'd like a reply"
+            />
+          </label>
+          <p class="hint">We also receive your app version and phone type, never your timetable link.</p>
+          <button class="btn" id="feedback-send">Send</button>
+          <p id="feedback-error" class="error" role="alert" hidden></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- Add to Home Screen guide -->
+    <section id="install-sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" hidden>
+      <div class="sheet-bar">
+        <h2 id="install-title">Add to Home Screen</h2>
+        <button class="text-btn" data-close>Done</button>
+      </div>
+      <div class="sheet-body">
+        <p id="install-done" class="install-done" hidden>You're already using Studyslot from your Home Screen.</p>
+        <p class="hint">Studyslot then opens like an app, full screen, and works without a connection.</p>
+        <div id="install-tabs" class="tabs install-tabs" role="tablist" aria-label="Phone">
+          <button role="tab" data-os="ios" aria-selected="true" aria-controls="install-ios">iPhone</button>
+          <button role="tab" data-os="android" aria-selected="false" aria-controls="install-android">Android</button>
+        </div>
+
+        <div id="install-ios" role="tabpanel" aria-label="iPhone">
+          <ol class="steps">
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 15V3M8 7l4-4 4 4M7 10H5v11h14V10h-2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+              ></span>
+              <span
+                >In <b>Safari</b>, tap <b>Share</b> (the square with an arrow). On the newest iPhones, tap
+                <b>•••</b> beside the address bar first.</span
+              >
+            </li>
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
+                  <path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg
+              ></span>
+              <span
+                >Scroll down and tap <b>Add to Home Screen</b>. Can't see it? Tap <b>View More</b> or
+                <b>Edit Actions</b> at the bottom of the list.</span
+              >
+            </li>
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 12.5l4.5 4.5L19 7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+              ></span>
+              <span>Tap <b>Add</b>. Studyslot appears on your Home Screen.</span>
+            </li>
+          </ol>
+          <p class="hint">
+            Using Chrome on iPhone? Tap <b>Share</b> in the address bar, then <b>Add to Home Screen</b>.
+          </p>
+        </div>
+
+        <div id="install-android" role="tabpanel" aria-label="Android" hidden>
+          <button class="btn" id="install-now" hidden>Install Studyslot</button>
+          <ol class="steps">
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="5" r="2" fill="currentColor" />
+                  <circle cx="12" cy="12" r="2" fill="currentColor" />
+                  <circle cx="12" cy="19" r="2" fill="currentColor" /></svg
+              ></span>
+              <span>In <b>Chrome</b>, tap the <b>⋮</b> menu in the top corner.</span>
+            </li>
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2" />
+                  <path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg
+              ></span>
+              <span>Tap <b>Add to Home screen</b> or <b>Install app</b>.</span>
+            </li>
+            <li>
+              <span class="step-icon"
+                ><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 12.5l4.5 4.5L19 7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  /></svg
+              ></span>
+              <span>Tap <b>Install</b> (or <b>Add</b>). Studyslot appears with your other apps.</span>
+            </li>
+          </ol>
+          <p class="hint">
+            Using Samsung Internet? Tap the <b>≡</b> menu, then <b>Add page to</b> → <b>Home screen</b>.
+          </p>
+        </div>
       </div>
     </section>
 

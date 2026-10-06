@@ -15,7 +15,8 @@
 
   // "Reset my link": the current generation of each reset friend link, by anonymous link id
   // (see src/index.js). Wrangler creates the namespace on the first deploy.
-  "kv_namespaces": [{ "binding": "LINK_RESETS" }],
+  // FEEDBACK: messages from the in-app feedback form, each deleted after a year.
+  "kv_namespaces": [{ "binding": "LINK_RESETS" }, { "binding": "FEEDBACK" }],
 
   // Own domain: after buying e.g. studyslot.ie and adding it to Cloudflare, uncomment and deploy.
   // "routes": [{ "pattern": "studyslot.ie", "custom_domain": true }]

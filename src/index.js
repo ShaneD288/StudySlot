@@ -7,6 +7,7 @@
 //                                     replaces all earlier ones
 //   GET  /api/friend?token=…&tz=…     a friend's name and classes from their token, without their link
 //   GET  /feed/<token>.ics            a cleaned calendar to subscribe to in Apple/Google Calendar
+//   POST /api/feedback                { kind, message, email?, version, device } from the feedback form
 import { extractClasses, groupChoicesFrom } from "./timetable.js";
 import { isValidTimeZone } from "./time.js";
 import { parseEvents } from "./ical.js";
@@ -20,6 +21,7 @@ const API = {
   "GET /api/timetable": (request, url) => timetable(url),
   "POST /api/share": (request, url, env) => createShare(request, env),
   "GET /api/friend": (request, url, env) => friendTimetable(url, env),
+  "POST /api/feedback": (request, url, env) => saveFeedback(request, env),
 };
 
 export default {
@@ -269,6 +271,41 @@ async function friendTimetable(url, env) {
     classes: visibleFor(classes, settings),
     fetchedAt: new Date(now).toISOString(),
   });
+}
+
+// ---------- Feedback ----------
+
+// Messages from the in-app form, kept in the FEEDBACK store for a year (as the Privacy Policy
+// says) and read with `npm run feedback`. The app never sends a timetable link with them.
+const FEEDBACK_KINDS = ["bug", "idea", "other"];
+const FEEDBACK_TTL = 365 * DAY_MS;
+
+async function saveFeedback(request, env) {
+  if (!env.FEEDBACK) return json({ error: "Feedback isn't available right now. Try again later." }, 503);
+  const text = await request.text();
+  if (text.length > 8 * 1024) return json({ error: "That message is too long." }, 413);
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return json({ error: "Invalid feedback." }, 400);
+  }
+  const field = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+  const message = field(raw?.message, 2000);
+  if (!message) return json({ error: "Write a message first." }, 400);
+  const email = field(raw.email, 200);
+  const entry = {
+    at: new Date().toISOString(),
+    kind: FEEDBACK_KINDS.includes(raw.kind) ? raw.kind : "other",
+    message,
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "",
+    version: field(raw.version, 20),
+    device: field(raw.device, 80),
+  };
+  // Newest last when listed; the random part keeps two messages in the same millisecond apart.
+  const key = `${entry.at}_${toBase64url(crypto.getRandomValues(new Uint8Array(6)))}`;
+  await env.FEEDBACK.put(key, JSON.stringify(entry), { expirationTtl: FEEDBACK_TTL / 1000 });
+  return json({ ok: true });
 }
 
 // ---------- Clean calendar feed ----------
