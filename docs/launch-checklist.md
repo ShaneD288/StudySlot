@@ -1,6 +1,6 @@
 # Launch checklist
 
-1. **Fill in the operator's name** in `public/privacy.html` and `public/terms.html` (replace `[Your name]`). `npm run deploy` refuses to run until this is done (`scripts/check-launch.js`).
+1. ~~**Fill in the operator's name**~~ Done: Shane Dillon, in `public/privacy.html` and `public/terms.html`. `scripts/check-launch.js` still blocks a deploy if a `[Your name]` placeholder comes back.
 2. **Set the `SHARE_KEY` Worker secret** (`npx wrangler secret put SHARE_KEY`, 32+ random characters). Without it, calendar-feed and friend links can't be created.
 3. **Add the GitHub secrets** `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` so the deploy workflow can run, and protect `main` (pull requests and passing CI required).
 4. **Register the domain** `studyslot.ie` (about €10–20 a year; .ie needs a connection to Ireland), add it to Cloudflare, and uncomment the `routes` line in `wrangler.jsonc`.
