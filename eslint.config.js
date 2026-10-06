@@ -17,6 +17,6 @@ export default [
   { files: ["public/sw.js"], languageOptions: { globals: globals.serviceworker } },
   // Build scripts, config and tests run in Node
   { files: ["scripts/**/*.js", "test/**/*.js", "*.config.js"], languageOptions: { globals: globals.node } },
-  // …except the smoke test, which runs the app in a simulated browser (happy-dom)
-  { files: ["test/app.smoke.test.js"], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  // …except the app tests, which run the app in a simulated browser (happy-dom)
+  { files: ["test/app.*.test.js"], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
 ];

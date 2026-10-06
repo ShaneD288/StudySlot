@@ -14,6 +14,7 @@ Planned as 1.0.0, the first public release. Tag `v1.0.0` on launch.
 - Friends: share by link or QR code, free time together and classes in common
 - Reset my link: stop every friend link you've shared, without affecting your calendar subscription
 - After adding a friend, a prompt to share your link back
+- Opening a friend's link before you have Studyslot: setup asks for your timetable by their name, then opens on Friends
 - One-screen setup: paste your timetable link and go
 - Sheets you can drag and flick away, a sliding view switcher and a translucent header
 - Offline support (service worker) and Home Screen install

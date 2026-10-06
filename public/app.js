@@ -395,10 +395,18 @@ document.fonts?.ready.then(placeTabThumb);
 
 // ---------- First run: add your timetable link ----------
 
+const WELCOME_LEDE = $("#link-sub").textContent;
+const joinNames = (names) => (names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names.at(-1) : names[0]);
+
 function showWelcome(error) {
   $("#app").hidden = true;
   $("#welcome").hidden = false;
   $("#link-input").value = link || "";
+  // Arrived from a friend's link: say what adding a timetable gets them.
+  $("#link-sub").textContent =
+    !data && friends.length
+      ? `Add your timetable to see when you and ${joinNames(friends.map((f) => f.name))} are free.`
+      : WELCOME_LEDE;
   // Changing the link from Settings: there's a timetable to go back to.
   $("#ob-back").hidden = !data;
   $("#link-error").hidden = !error;
@@ -459,6 +467,7 @@ $("#refresh").addEventListener("click", () => refresh({ force: true }));
 $("#link-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const value = $("#link-input").value.trim();
+  const firstTime = !data;
   const button = $("#link-submit");
   button.disabled = true;
   button.textContent = "Reading your timetable…";
@@ -477,7 +486,8 @@ $("#link-form").addEventListener("submit", async (e) => {
     store.set("link", link);
     store.set("data", data);
     store.set("privateLinksNotice", true);
-    view = "today";
+    // Someone who came from a friend's link sees their free time together first.
+    view = firstTime && friends.length ? "friends" : "today";
     showApp();
     maybeAskGroups();
   } catch (err) {
@@ -775,9 +785,7 @@ function renderFriends() {
   const free = freeTogether(friendDay, [mine, ...theirs]);
   const shared = classesInCommon(mine, theirs, friendDay);
   const names = picked.map((f) => f.name);
-  const who = names.length
-    ? `You and ${names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names.at(-1) : names[0]}`
-    : "You";
+  const who = names.length ? `You and ${joinNames(names)}` : "You";
 
   body.replaceChildren(
     ...friends
@@ -977,7 +985,10 @@ function checkIncomingFriend() {
   const describe = (name) => {
     $("#incoming-title").textContent = `Add ${name}?`;
     $("#incoming-text").textContent =
-      `${name} shared their timetable with you. Add them to see when you're both free.` +
+      `${name} shared their timetable with you. ` +
+      (link
+        ? "Add them to see when you're both free."
+        : "Add them, then add your own timetable to see when you're both free.") +
       (parsed.legacy ? ` This is an older, less private link (${OLD_LINK}); ask them to share it again.` : "");
   };
   describe(parsed.legacy?.n || "your friend");
@@ -1006,6 +1017,8 @@ function checkIncomingFriend() {
       view = "friends";
       render();
       shareBack(added.name);
+    } else {
+      showWelcome(); // now asks for their timetable by the friend's name
     }
   };
   $("#incoming-copy").onclick = () =>
@@ -1258,6 +1271,8 @@ $("#forget").addEventListener("click", () => {
   data = null;
   groups = {};
   hidden = new Set();
+  friends = [];
+  selectedFriends = new Set();
   closeSheets();
   showWelcome();
 });
